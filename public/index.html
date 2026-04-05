@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LP GAP</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚔</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #000; --card: #060606; --border: #1a1a1a;
+      --text: #fff; --dim: #555; --faint: #333;
+      --red: #D72631; --input-bg: #0a0a0a;
+    }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Space Mono', monospace;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 48px 20px 80px;
+      background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
+      background-size: 24px 24px;
+      position: relative; overflow-x: hidden;
+    }
+
+    body::before, body::after {
+      content: ''; position: absolute; border-radius: 50%;
+      border: 1px solid var(--border); pointer-events: none;
+    }
+    body::before { top: -120px; right: -120px; width: 340px; height: 340px; opacity: .4; }
+    body::after  { top: 60px;   right: -60px;  width: 220px; height: 220px; opacity: .3; }
+
+    h1 {
+      font-size: clamp(42px, 10vw, 72px); font-weight: 700;
+      letter-spacing: .2em; line-height: 1; text-transform: uppercase;
+    }
+    .subtitle {
+      font-size: 11px; letter-spacing: .35em; color: var(--dim);
+      text-transform: uppercase; margin-top: 12px; margin-bottom: 48px;
+    }
+
+    .form { width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 16px; }
+
+    .field label {
+      display: block; font-size: 9px; letter-spacing: .3em;
+      color: var(--dim); text-transform: uppercase; margin-bottom: 6px;
+    }
+    input {
+      width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 16px; color: var(--text);
+      font-family: inherit; font-size: 15px; letter-spacing: .05em;
+      outline: none; transition: border-color .2s;
+    }
+    input::placeholder { color: var(--faint); }
+    input:focus { border-color: var(--red); }
+
+    .regions {
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 4px;
+    }
+    .regions button {
+      background: transparent; color: var(--dim); border: 1px solid var(--border);
+      border-radius: 20px; padding: 6px 14px; font-size: 11px;
+      font-family: inherit; letter-spacing: .15em; cursor: pointer;
+      transition: all .2s; font-weight: 400;
+    }
+    .regions button.active {
+      background: var(--text); color: #000; border-color: var(--text); font-weight: 700;
+    }
+    .regions button:hover:not(.active) { border-color: #444; color: #888; }
+
+    .compare-btn {
+      width: 100%; margin-top: 12px; padding: 16px;
+      background: var(--red); color: var(--text); border: none;
+      border-radius: 12px; font-size: 12px; font-family: inherit;
+      font-weight: 700; letter-spacing: .3em; text-transform: uppercase;
+      cursor: pointer; transition: all .3s;
+    }
+    .compare-btn:disabled {
+      background: #111; color: var(--faint); cursor: not-allowed; opacity: .5;
+    }
+    .compare-btn:not(:disabled):hover { filter: brightness(1.15); }
+
+    .loading {
+      text-align: center; margin-top: 48px; color: var(--dim);
+      font-size: 11px; letter-spacing: .3em; text-transform: uppercase;
+    }
+    .dots { margin-bottom: 16px; }
+    .dots span {
+      display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+      background: var(--red); margin: 0 3px; animation: pulse 1.2s ease infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: .2s; }
+    .dots span:nth-child(3) { animation-delay: .4s; }
+
+    .results {
+      width: 100%; max-width: 520px; margin-top: 48px;
+      animation: fadeUp .6s ease;
+    }
+    .player-card {
+      padding: 24px; border: 1px solid var(--border);
+      border-radius: 16px; background: var(--card);
+    }
+    .player-card + .gap-box, .gap-box + .player-card { margin-top: 2px; }
+    .player-name {
+      font-size: 11px; letter-spacing: .25em; color: var(--dim);
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .player-name .ahead { color: var(--red); margin-left: 8px; font-size: 9px; }
+    .player-rank { font-size: 22px; font-weight: 700; letter-spacing: .05em; }
+    .player-wr { font-size: 11px; color: #444; margin-top: 6px; letter-spacing: .1em; }
+
+    .gap-box {
+      text-align: center; padding: 32px 24px; border-radius: 16px;
+      border: 1px solid var(--border); background: var(--card);
+    }
+    .gap-label {
+      font-size: 9px; letter-spacing: .4em; color: #444;
+      text-transform: uppercase; margin-bottom: 8px;
+    }
+    .gap-value {
+      font-size: clamp(36px, 8vw, 56px); font-weight: 700;
+      letter-spacing: .05em; line-height: 1;
+    }
+    .gap-value.positive { color: var(--red); }
+    .gap-sub { font-size: 11px; color: #444; margin-top: 10px; letter-spacing: .15em; text-transform: uppercase; }
+
+    .error {
+      color: var(--red); font-size: 12px; text-align: center;
+      margin-top: 16px; letter-spacing: .1em;
+    }
+
+    .footer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 14px; text-align: center;
+      font-size: 9px; letter-spacing: .25em; color: #222;
+      text-transform: uppercase;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 80%, 100% { opacity: .2; transform: scale(.8); }
+      40%           { opacity: 1;  transform: scale(1.2); }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>LP GAP</h1>
+  <div class="subtitle">league points comparator</div>
+
+  <div class="form">
+    <div class="field">
+      <label>Jugador 1</label>
+      <input id="p1" placeholder="Nombre#Tag" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="field">
+      <label>Jugador 2</label>
+      <input id="p2" placeholder="Nombre#Tag" autocomplete="off" spellcheck="false" />
+    </div>
+    <div class="field">
+      <label>Región</label>
+      <div class="regions" id="regions"></div>
+    </div>
+    <button class="compare-btn" id="btn" disabled>Comparar</button>
+  </div>
+
+  <div id="error" class="error" hidden></div>
+  <div id="loading" class="loading" hidden>
+    <div class="dots"><span></span><span></span><span></span></div>
+    <span id="load-msg">BUSCANDO INVOCADORES</span>
+  </div>
+  <div id="results" class="results" hidden></div>
+  <div class="footer">nothing to hide</div>
+
+<script>
+const REGIONS = [
+  {v:"euw",l:"EUW"},{v:"eune",l:"EUNE"},{v:"na",l:"NA"},{v:"kr",l:"KR"},
+  {v:"jp",l:"JP"},{v:"br",l:"BR"},{v:"las",l:"LAS"},{v:"lan",l:"LAN"},
+  {v:"oce",l:"OCE"},{v:"tr",l:"TR"}
+];
+const TIERS = ["IRON","BRONZE","SILVER","GOLD","PLATINUM","EMERALD","DIAMOND","MASTER","GRANDMASTER","CHALLENGER"];
+const DIVS  = ["IV","III","II","I"];
+const COLORS = {
+  IRON:"#8B8589",BRONZE:"#CD7F32",SILVER:"#C0C0C0",GOLD:"#FFD700",
+  PLATINUM:"#47C9AF",EMERALD:"#50C878",DIAMOND:"#B9F2FF",
+  MASTER:"#9B59B6",GRANDMASTER:"#E74C3C",CHALLENGER:"#F1C40F",UNRANKED:"#444"
+};
+
+let region = "euw";
+const $p1  = document.getElementById("p1");
+const $p2  = document.getElementById("p2");
+const $btn = document.getElementById("btn");
+
+// — Region pills
+const $reg = document.getElementById("regions");
+REGIONS.forEach(r => {
+  const b = document.createElement("button");
+  b.textContent = r.l;
+  if (r.v === region) b.className = "active";
+  b.onclick = () => {
+    region = r.v;
+    $reg.querySelectorAll("button").forEach(x => x.className = "");
+    b.className = "active";
+  };
+  $reg.appendChild(b);
+});
+
+// — Validation
+function check() { $btn.disabled = !($p1.value.includes("#") && $p2.value.includes("#")); }
+$p1.addEventListener("input", check);
+$p2.addEventListener("input", check);
+[$p1, $p2].forEach(el => el.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !$btn.disabled) compare();
+}));
+$btn.addEventListener("click", compare);
+
+// — Helpers
+function toLP(tier, div, lp) {
+  const i = TIERS.indexOf((tier || "").toUpperCase());
+  if (i < 0) return 0;
+  if (i >= 7) return 2800 + (lp || 0);
+  const d = DIVS.indexOf((div || "").toUpperCase());
+  return i * 400 + Math.max(d, 0) * 100 + (lp || 0);
+}
+
+function fmtRank(r) {
+  if (!r || r.tier === "Unranked") return "UNRANKED";
+  const t = r.tier.toUpperCase();
+  if (TIERS.indexOf(t) >= 7) return `${r.tier} ${r.lp} LP`;
+  return `${r.tier} ${r.division} · ${r.lp} LP`;
+}
+
+function wr(w, l) {
+  const t = w + l;
+  return t ? `${w}W ${l}L · ${Math.round(w / t * 100)}% WR` : "";
+}
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+async function fetchRank(name, tag) {
+  const res = await fetch(`/api/rank?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}&region=${region}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Error");
+  return data;
+}
+
+// — Loading
+const MSGS = ["BUSCANDO INVOCADORES", "CONSULTANDO RANGOS", "CALCULANDO GAP"];
+let loadIv;
+function setLoading(on) {
+  document.getElementById("loading").hidden = !on;
+  clearInterval(loadIv);
+  if (on) {
+    $btn.disabled = true;
+    let i = 0;
+    loadIv = setInterval(() => {
+      i = (i + 1) % MSGS.length;
+      document.getElementById("load-msg").textContent = MSGS[i];
+    }, 1800);
+  } else { check(); }
+}
+
+function showError(msg) {
+  const el = document.getElementById("error");
+  el.textContent = msg; el.hidden = false;
+}
+function hideError() { document.getElementById("error").hidden = true; }
+
+// — Compare
+async function compare() {
+  const id1 = $p1.value.trim().split("#");
+  const id2 = $p2.value.trim().split("#");
+  if (id1.length !== 2 || id2.length !== 2) return showError("Formato: Nombre#Tag");
+
+  hideError();
+  document.getElementById("results").hidden = true;
+  setLoading(true);
+
+  try {
+    const [r1, r2] = await Promise.all([
+      fetchRank(id1[0], id1[1]),
+      fetchRank(id2[0], id2[1])
+    ]);
+
+    const lp1 = toLP(r1.tier, r1.division, r1.lp);
+    const lp2 = toLP(r2.tier, r2.division, r2.lp);
+    const diff = Math.abs(lp1 - lp2);
+    const leader = lp1 >= lp2 ? 1 : 2;
+
+    const box = document.getElementById("results");
+    box.innerHTML = `
+      <div class="player-card">
+        <div class="player-name">
+          ${esc($p1.value.trim())}
+          ${leader === 1 ? '<span class="ahead">▲ AHEAD</span>' : ''}
+        </div>
+        <div class="player-rank" style="color:${COLORS[r1.tier?.toUpperCase()] || "#fff"}">
+          ${fmtRank(r1)}
+        </div>
+        <div class="player-wr">${wr(r1.wins, r1.losses)}</div>
+      </div>
+      <div class="gap-box">
+        <div class="gap-label">LP Gap</div>
+        <div class="gap-value ${diff > 0 ? 'positive' : ''}">
+          ${diff > 0 ? '+' : ''}${diff}
+        </div>
+        <div class="gap-sub">
+          ${diff === 0 ? 'MISMO RANGO' : `${esc(leader === 1 ? $p1.value.trim() : $p2.value.trim())} VA POR DELANTE`}
+        </div>
+      </div>
+      <div class="player-card">
+        <div class="player-name">
+          ${esc($p2.value.trim())}
+          ${leader === 2 ? '<span class="ahead">▲ AHEAD</span>' : ''}
+        </div>
+        <div class="player-rank" style="color:${COLORS[r2.tier?.toUpperCase()] || "#fff"}">
+          ${fmtRank(r2)}
+        </div>
+        <div class="player-wr">${wr(r2.wins, r2.losses)}</div>
+      </div>`;
+    box.hidden = false;
+  } catch (e) {
+    showError(e.message || "Error al buscar datos");
+  }
+  setLoading(false);
+}
+</script>
+</body>
+</html>
