@@ -44,7 +44,15 @@ module.exports = async (req, res) => {
     );
     if (!acc) return res.status(404).json({ error: "Jugador no encontrado" });
 
-    // 2 — Datos de ranked directamente con PUUID
+    // 2 — Summoner data (profile icon)
+    const sum = await riot(
+      `https://${r.platform}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`,
+      apiKey,
+      "Summoner lookup",
+    );
+    const iconId = sum ? sum.profileIconId : 29;
+
+    // 3 — Datos de ranked con PUUID
     const ranks = await riot(
       `https://${r.platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${acc.puuid}`,
       apiKey,
@@ -60,6 +68,7 @@ module.exports = async (req, res) => {
         lp: 0,
         wins: 0,
         losses: 0,
+        iconId,
       });
     }
 
@@ -69,6 +78,7 @@ module.exports = async (req, res) => {
       lp: solo.leaguePoints,
       wins: solo.wins,
       losses: solo.losses,
+      iconId,
     });
   } catch (e) {
     console.error("LP GAP ERROR:", e.message);
