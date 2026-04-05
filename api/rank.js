@@ -44,17 +44,9 @@ module.exports = async (req, res) => {
     );
     if (!acc) return res.status(404).json({ error: "Jugador no encontrado" });
 
-    // 2 — Summoner ID desde PUUID
-    const sum = await riot(
-      `https://${r.platform}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${acc.puuid}`,
-      apiKey,
-      "Summoner lookup",
-    );
-    if (!sum) return res.status(404).json({ error: "Invocador no encontrado" });
-
-    // 3 — Datos de ranked
+    // 2 — Datos de ranked directamente con PUUID
     const ranks = await riot(
-      `https://${r.platform}.api.riotgames.com/lol/league/v4/entries/by-summoner/${sum.id}`,
+      `https://${r.platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${acc.puuid}`,
       apiKey,
       "Ranked lookup",
     );
