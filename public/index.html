@@ -130,6 +130,18 @@
       letter-spacing: .1em;
     }
     .gap-card .leader strong { color: var(--text); font-weight: 700; }
+    .mmr-gap {
+      margin-top: 20px; padding-top: 16px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+    }
+    .mmr-gap-label {
+      font-size: 11px; font-weight: 600; letter-spacing: .2em;
+      color: var(--dim); text-transform: uppercase;
+    }
+    .mmr-gap-value {
+      font-size: 24px; font-weight: 900; color: var(--cyan);
+    }
 
     /* Player card */
     .player-card {
@@ -177,6 +189,23 @@
     }
 
     /* LP Progress bar */
+    .mmr-row {
+      display: flex; gap: 2px; margin-bottom: 12px;
+      background: var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .mmr-block {
+      flex: 1; background: var(--card2); padding: 12px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .mmr-label {
+      font-size: 9px; font-weight: 600; color: var(--dim);
+      text-transform: uppercase; letter-spacing: .12em;
+    }
+    .mmr-value {
+      font-size: 15px; font-weight: 800; color: var(--cyan);
+    }
+    .mmr-err { font-size: 11px; font-weight: 500; color: var(--dim); }
+
     .lp-progress {
       background: var(--bg); border-radius: 10px; padding: 16px 20px;
     }
@@ -197,7 +226,6 @@
     }
     .lp-fill {
       height: 100%; border-radius: 4px;
-      background: linear-gradient(90deg, var(--magenta), #a855f7);
       transition: width 1s cubic-bezier(.16,1,.3,1);
     }
     .lp-markers {
@@ -254,6 +282,9 @@
     <span id="load-msg">Buscando invocadores...</span>
   </div>
   <div id="results" class="results" hidden></div>
+  <div style="margin-top:40px;text-align:center;font-size:9px;color:#2a2b35;letter-spacing:.1em">
+    MMR data by <a href="https://whatismymmr.com" style="color:#3a3b47" target="_blank">WhatIsMyMMR</a> · CC BY 4.0
+  </div>
 
 <script>
 const REGIONS = [
@@ -378,7 +409,15 @@ async function fetchRank(name, tag) {
   return data;
 }
 
-const MSGS = ["Buscando invocadores...", "Consultando rangos...", "Calculando gap..."];
+async function fetchMMR(name, tag) {
+  try {
+    const res = await fetch(`/api/mmr?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}&region=${region}`);
+    const data = await res.json();
+    return data;
+  } catch { return { ranked: null }; }
+}
+
+const MSGS = ["Buscando invocadores...", "Consultando rangos...", "Estimando MMR...", "Calculando gap..."];
 let loadIv;
 function setLoading(on) {
   document.getElementById("loading").hidden = !on;
@@ -395,7 +434,7 @@ function setLoading(on) {
 function showError(msg) { const e=document.getElementById("error"); e.textContent=msg; e.hidden=false; }
 function hideError() { document.getElementById("error").hidden=true; }
 
-function buildPlayerCard(riotId, r) {
+function buildPlayerCard(riotId, r, mmrData) {
   const parts = riotId.split("#");
   const name = esc(parts[0]);
   const tag = esc(parts[1] || "");
@@ -406,6 +445,10 @@ function buildPlayerCard(riotId, r) {
   const wrColor = wrPct >= 55 ? "var(--green)" : wrPct >= 50 ? "var(--text)" : "var(--red)";
   const prog = getProgressInfo(r);
   const icon = r.iconId || 29;
+
+  const mmr = mmrData && mmrData.ranked;
+  const mmrText = mmr ? mmr.mmr.toLocaleString() : "—";
+  const mmrSub = mmr ? `±${mmr.err}` : "";
 
   return `
     <div class="player-card">
@@ -442,13 +485,30 @@ function buildPlayerCard(riotId, r) {
         </div>
       </div>
 
+      <div class="mmr-row">
+        <div class="mmr-block">
+          <span class="mmr-label">Ranked MMR</span>
+          <span class="mmr-value">${mmrText} <span class="mmr-err">${mmrSub}</span></span>
+        </div>
+        ${mmr && mmr.percentile != null ? `
+        <div class="mmr-block">
+          <span class="mmr-label">Percentil</span>
+          <span class="mmr-value">Top ${100 - mmr.percentile}%</span>
+        </div>` : ''}
+        ${mmr && mmr.closestRank ? `
+        <div class="mmr-block">
+          <span class="mmr-label">MMR = Rango</span>
+          <span class="mmr-value">${mmr.closestRank}</span>
+        </div>` : ''}
+      </div>
+
       <div class="lp-progress">
         <div class="lp-progress-header">
           <span class="lp-progress-title">${prog.label}</span>
-          <span class="lp-progress-value">${prog.valueTxt}</span>
+          <span class="lp-progress-value" style="color:${tc.bg}">${prog.valueTxt}</span>
         </div>
         <div class="lp-track">
-          <div class="lp-fill" style="width:0%" data-target="${prog.pct}"></div>
+          <div class="lp-fill" style="width:0%;background:${tc.bg}" data-target="${prog.pct}"></div>
         </div>
         <div class="lp-markers">
           <span class="lp-marker">${prog.left}</span>
@@ -468,9 +528,11 @@ async function compare() {
   setLoading(true);
 
   try {
-    const [r1, r2] = await Promise.all([
+    const [r1, r2, m1, m2] = await Promise.all([
       fetchRank(id1[0], id1[1]),
-      fetchRank(id2[0], id2[1])
+      fetchRank(id2[0], id2[1]),
+      fetchMMR(id1[0], id1[1]),
+      fetchMMR(id2[0], id2[1]),
     ]);
 
     const lp1 = toLP(r1.tier, r1.division, r1.lp);
@@ -478,6 +540,11 @@ async function compare() {
     const diff = Math.abs(lp1 - lp2);
     const leader = lp1 >= lp2 ? 1 : 2;
     const leaderName = leader===1 ? esc($p1.value.trim().split("#")[0]) : esc($p2.value.trim().split("#")[0]);
+
+    const mmr1 = m1 && m1.ranked ? m1.ranked.mmr : null;
+    const mmr2 = m2 && m2.ranked ? m2.ranked.mmr : null;
+    const mmrDiff = (mmr1 != null && mmr2 != null) ? Math.abs(mmr1 - mmr2) : null;
+    const mmrLeader = (mmr1 != null && mmr2 != null) ? (mmr1 >= mmr2 ? 1 : 2) : null;
 
     const box = document.getElementById("results");
     box.innerHTML = `
@@ -488,9 +555,14 @@ async function compare() {
           ? 'Mismo rango'
           : `<strong>${leaderName}</strong> va por delante`
         }</div>
+        ${mmrDiff != null ? `
+        <div class="mmr-gap">
+          <span class="mmr-gap-label">MMR Gap</span>
+          <span class="mmr-gap-value">${mmrDiff === 0 ? '0' : '+'+mmrDiff}</span>
+        </div>` : ''}
       </div>
-      ${buildPlayerCard($p1.value.trim(), r1)}
-      ${buildPlayerCard($p2.value.trim(), r2)}
+      ${buildPlayerCard($p1.value.trim(), r1, m1)}
+      ${buildPlayerCard($p2.value.trim(), r2, m2)}
     `;
     box.hidden = false;
 
