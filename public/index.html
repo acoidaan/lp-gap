@@ -455,49 +455,31 @@ function buildPlayerCard(riotId, r, mmrData) {
   const icon = r.iconId || 29;
 
   const mmr = mmrData && mmrData.ranked;
-  const mmrNormal = mmrData && mmrData.normal;
-  const mmrAram = mmrData && mmrData.aram;
-  const hasAnyMmr = mmr || mmrNormal || mmrAram;
 
   const rawName = parts[0];
   const rawTag = parts[1] || "";
   const opggUrl = `https://www.op.gg/summoners/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
   const deeplolUrl = `https://www.deeplol.gg/summoner/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
 
-  // Build MMR blocks
+  // Build MMR blocks - only ranked
   let mmrHtml = '';
-  if (hasAnyMmr) {
+  if (mmr) {
     mmrHtml = '<div class="mmr-row">';
-    if (mmr) {
+    mmrHtml += `<div class="mmr-block">
+      <span class="mmr-label">Ranked MMR</span>
+      <span class="mmr-value">${mmr.mmr.toLocaleString()} <span class="mmr-err">±${mmr.err}</span></span>
+    </div>`;
+    if (mmr.percentile != null) {
       mmrHtml += `<div class="mmr-block">
-        <span class="mmr-label">Ranked MMR</span>
-        <span class="mmr-value">${mmr.mmr.toLocaleString()} <span class="mmr-err">±${mmr.err}</span></span>
+        <span class="mmr-label">Percentil</span>
+        <span class="mmr-value">Top ${100 - mmr.percentile}%</span>
       </div>`;
-      if (mmr.percentile != null) {
-        mmrHtml += `<div class="mmr-block">
-          <span class="mmr-label">Percentil</span>
-          <span class="mmr-value">Top ${100 - mmr.percentile}%</span>
-        </div>`;
-      }
-      if (mmr.closestRank) {
-        mmrHtml += `<div class="mmr-block">
-          <span class="mmr-label">MMR ≈ Rango</span>
-          <span class="mmr-value">${mmr.closestRank}</span>
-        </div>`;
-      }
-    } else {
-      if (mmrNormal) {
-        mmrHtml += `<div class="mmr-block">
-          <span class="mmr-label">Normal MMR</span>
-          <span class="mmr-value">${mmrNormal.mmr.toLocaleString()} <span class="mmr-err">±${mmrNormal.err}</span></span>
-        </div>`;
-      }
-      if (mmrAram) {
-        mmrHtml += `<div class="mmr-block">
-          <span class="mmr-label">ARAM MMR</span>
-          <span class="mmr-value">${mmrAram.mmr.toLocaleString()} <span class="mmr-err">±${mmrAram.err}</span></span>
-        </div>`;
-      }
+    }
+    if (mmr.closestRank) {
+      mmrHtml += `<div class="mmr-block">
+        <span class="mmr-label">MMR ≈ Rango</span>
+        <span class="mmr-value">${mmr.closestRank}</span>
+      </div>`;
     }
     mmrHtml += '</div>';
   }
