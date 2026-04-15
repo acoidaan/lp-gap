@@ -165,7 +165,15 @@
     .player-name {
       font-size: 16px; font-weight: 700; letter-spacing: .02em;
     }
-    .player-tag { color: var(--dim); font-weight: 500; }
+    .player-name .player-tag { color: var(--dim); font-weight: 500; }
+    .ext-link {
+      display: inline-block; margin-left: 6px; padding: 2px 7px;
+      font-size: 9px; font-weight: 600; letter-spacing: .05em;
+      color: #4a4b57; background: #1c1d26; border: 1px solid #2a2b35;
+      border-radius: 5px; text-decoration: none;
+      transition: all .15s; vertical-align: middle;
+    }
+    .ext-link:hover { color: #8b8d9b; border-color: #4a4b57; }
     .player-rank-badge {
       font-size: 13px; font-weight: 800; padding: 6px 14px;
       border-radius: 8px; letter-spacing: .05em;
@@ -447,8 +455,52 @@ function buildPlayerCard(riotId, r, mmrData) {
   const icon = r.iconId || 29;
 
   const mmr = mmrData && mmrData.ranked;
-  const mmrText = mmr ? mmr.mmr.toLocaleString() : "—";
-  const mmrSub = mmr ? `±${mmr.err}` : "";
+  const mmrNormal = mmrData && mmrData.normal;
+  const mmrAram = mmrData && mmrData.aram;
+  const hasAnyMmr = mmr || mmrNormal || mmrAram;
+
+  const rawName = parts[0];
+  const rawTag = parts[1] || "";
+  const opggUrl = `https://www.op.gg/summoners/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
+  const deeplolUrl = `https://www.deeplol.gg/summoner/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
+
+  // Build MMR blocks
+  let mmrHtml = '';
+  if (hasAnyMmr) {
+    mmrHtml = '<div class="mmr-row">';
+    if (mmr) {
+      mmrHtml += `<div class="mmr-block">
+        <span class="mmr-label">Ranked MMR</span>
+        <span class="mmr-value">${mmr.mmr.toLocaleString()} <span class="mmr-err">±${mmr.err}</span></span>
+      </div>`;
+      if (mmr.percentile != null) {
+        mmrHtml += `<div class="mmr-block">
+          <span class="mmr-label">Percentil</span>
+          <span class="mmr-value">Top ${100 - mmr.percentile}%</span>
+        </div>`;
+      }
+      if (mmr.closestRank) {
+        mmrHtml += `<div class="mmr-block">
+          <span class="mmr-label">MMR ≈ Rango</span>
+          <span class="mmr-value">${mmr.closestRank}</span>
+        </div>`;
+      }
+    } else {
+      if (mmrNormal) {
+        mmrHtml += `<div class="mmr-block">
+          <span class="mmr-label">Normal MMR</span>
+          <span class="mmr-value">${mmrNormal.mmr.toLocaleString()} <span class="mmr-err">±${mmrNormal.err}</span></span>
+        </div>`;
+      }
+      if (mmrAram) {
+        mmrHtml += `<div class="mmr-block">
+          <span class="mmr-label">ARAM MMR</span>
+          <span class="mmr-value">${mmrAram.mmr.toLocaleString()} <span class="mmr-err">±${mmrAram.err}</span></span>
+        </div>`;
+      }
+    }
+    mmrHtml += '</div>';
+  }
 
   return `
     <div class="player-card">
@@ -458,7 +510,11 @@ function buildPlayerCard(riotId, r, mmrData) {
             <img src="${iconUrl(icon)}" alt="${name}" />
           </div>
           <div>
-            <div class="player-name">${name}<span class="player-tag"> #${tag}</span></div>
+            <div class="player-name">
+              ${name}<span class="player-tag"> #${tag}</span>
+              <a href="${opggUrl}" target="_blank" class="ext-link">OP.GG</a>
+              <a href="${deeplolUrl}" target="_blank" class="ext-link">DeepLoL</a>
+            </div>
           </div>
         </div>
         <div class="player-rank-badge" style="background:${tc.bg};color:${tc.text}">
@@ -485,22 +541,7 @@ function buildPlayerCard(riotId, r, mmrData) {
         </div>
       </div>
 
-      <div class="mmr-row">
-        <div class="mmr-block">
-          <span class="mmr-label">Ranked MMR</span>
-          <span class="mmr-value">${mmrText} <span class="mmr-err">${mmrSub}</span></span>
-        </div>
-        ${mmr && mmr.percentile != null ? `
-        <div class="mmr-block">
-          <span class="mmr-label">Percentil</span>
-          <span class="mmr-value">Top ${100 - mmr.percentile}%</span>
-        </div>` : ''}
-        ${mmr && mmr.closestRank ? `
-        <div class="mmr-block">
-          <span class="mmr-label">MMR = Rango</span>
-          <span class="mmr-value">${mmr.closestRank}</span>
-        </div>` : ''}
-      </div>
+      ${mmrHtml}
 
       <div class="lp-progress">
         <div class="lp-progress-header">
