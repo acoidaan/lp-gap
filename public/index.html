@@ -646,6 +646,14 @@
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .ladder-name a {
+        color: inherit;
+        text-decoration: none;
+        transition: color 0.15s;
+      }
+      .ladder-name a:hover {
+        color: var(--gold);
+      }
       .ladder-rank-str {
         font-size: 10px;
         color: var(--dim);
@@ -1396,10 +1404,12 @@
             if (p.error) {
               const errMsg =
                 typeof p.error === "string" ? p.error : "Error al cargar";
+              const [errName, errTag] = p.riotId.split("#");
+              const errOpgg = `https://www.op.gg/summoners/${LADDER_REGION}/${encodeURIComponent(errName)}-${encodeURIComponent(errTag || "")}`;
               return `<div class="ladder-row">
         <span class="ladder-pos" style="color:${posColors[i] || "var(--dim)"}">#${i + 1}</span>
         <div class="ladder-info" style="margin-left:46px">
-          <div class="ladder-name">${esc(p.riotId.split("#")[0])}</div>
+          <div class="ladder-name"><a href="${errOpgg}" target="_blank" rel="noopener">${esc(errName)}</a></div>
           <div class="ladder-rank-str" style="color:var(--red)">${esc(errMsg)}</div>
         </div>
       </div>`;
@@ -1415,7 +1425,8 @@
                 : wrPct >= 50
                   ? "var(--text)"
                   : "var(--red)";
-            const name = p.riotId.split("#")[0];
+            const [name, tag] = p.riotId.split("#");
+            const opggUrl = `https://www.op.gg/summoners/${LADDER_REGION}/${encodeURIComponent(name)}-${encodeURIComponent(tag || "")}`;
 
             return `<div class="ladder-row">
       <span class="ladder-pos" style="color:${posColors[i] || "var(--dim)"}">#${i + 1}</span>
@@ -1423,7 +1434,7 @@
         <img src="${iconUrl(p.iconId || 29)}" alt="${esc(name)}" loading="lazy" />
       </div>
       <div class="ladder-info">
-        <div class="ladder-name">${esc(name)}</div>
+        <div class="ladder-name"><a href="${opggUrl}" target="_blank" rel="noopener">${esc(name)}</a></div>
         <div class="ladder-rank-str">
           <span class="ladder-tier-dot" style="background:${tc.bg}"></span>${ladderRankStr(p)}
         </div>
