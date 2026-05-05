@@ -26,6 +26,22 @@
       padding: 40px 20px 80px;
     }
 
+    /* Page layout: main col + sidebar */
+    .page-layout {
+      display: flex;
+      gap: 24px;
+      width: 100%;
+      max-width: 940px;
+      align-items: flex-start;
+    }
+    .main-col {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     /* Header */
     .header {
       text-align: center; margin-bottom: 40px;
@@ -249,49 +265,284 @@
       margin-top: 16px; font-weight: 500;
     }
 
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 290px;
+      flex-shrink: 0;
+      position: sticky;
+      top: 40px;
+    }
+    .ladder-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ladder-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--gold), var(--magenta));
+    }
+
+    .ladder-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .ladder-title {
+      font-size: 11px; font-weight: 700;
+      letter-spacing: .2em; color: var(--dim);
+      text-transform: uppercase;
+    }
+    .refresh-btn {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--dim);
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+      font-family: inherit;
+      line-height: 1;
+    }
+    .refresh-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+    .refresh-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .refresh-btn.spinning { animation: spin .7s linear infinite; }
+
+    /* Cutoffs */
+    .cutoffs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .cutoff-item {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 10px 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cutoff-emblem {
+      width: 36px; height: 36px;
+      object-fit: contain;
+      flex-shrink: 0;
+      filter: drop-shadow(0 0 4px rgba(0,0,0,.5));
+    }
+    .cutoff-tier {
+      font-size: 9px; font-weight: 700;
+      letter-spacing: .08em; text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 2px;
+    }
+    .cutoff-lp {
+      font-size: 13px; font-weight: 800;
+      color: var(--text);
+    }
+
+    /* Ladder divider */
+    .ladder-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 12px 0;
+    }
+
+    /* Ladder rows */
+    .ladder-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .ladder-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .ladder-row:last-child { border-bottom: none; }
+
+    .ladder-pos {
+      font-size: 12px; font-weight: 800;
+      width: 20px; text-align: center;
+      flex-shrink: 0;
+    }
+    .ladder-avatar {
+      width: 36px; height: 36px;
+      border-radius: 8px; overflow: hidden;
+      border: 2px solid var(--border);
+      flex-shrink: 0;
+    }
+    .ladder-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+    .ladder-info { flex: 1; min-width: 0; }
+    .ladder-name {
+      font-size: 13px; font-weight: 700;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ladder-rank-str {
+      font-size: 10px; color: var(--dim);
+      margin-top: 2px; font-weight: 500;
+    }
+    .ladder-tier-dot {
+      display: inline-block;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+      position: relative; top: -1px;
+    }
+
+    .ladder-wr {
+      text-align: right; flex-shrink: 0;
+    }
+    .ladder-wr-val {
+      font-size: 12px; font-weight: 700;
+    }
+    .ladder-wr-games {
+      font-size: 9px; color: var(--dim); font-weight: 500;
+      margin-top: 1px;
+    }
+
+    /* Skeleton loading */
+    .ladder-skeleton {
+      height: 56px;
+      background: linear-gradient(90deg, var(--bg) 25%, var(--border) 50%, var(--bg) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    @keyframes shimmer {
+      from { background-position: 200% center; }
+      to   { background-position: -200% center; }
+    }
+
+    .ladder-footer {
+      margin-top: 12px;
+      text-align: center;
+    }
+    .ladder-updated {
+      font-size: 9px; color: var(--faint);
+      letter-spacing: .1em;
+    }
+
+    /* Ladder error */
+    .ladder-error {
+      font-size: 11px; color: var(--red); font-weight: 500;
+      padding: 8px 0; text-align: center;
+    }
+
+    /* Animations */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(16px); }
       to   { opacity: 1; transform: translateY(0); }
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* Responsive */
     @media (max-width: 480px) {
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       .player-top { flex-direction: column; align-items: flex-start; gap: 12px; }
+    }
+    @media (max-width: 860px) {
+      .page-layout { flex-direction: column; align-items: center; }
+      .sidebar { width: 100%; max-width: 560px; position: static; }
+      .main-col { width: 100%; }
     }
   </style>
 </head>
 <body>
 
-  <div class="header">
-    <h1>LP GAP</h1>
-    <div class="sub">League Points Comparator</div>
-  </div>
+  <div class="page-layout">
+    <!-- Main content column -->
+    <div class="main-col">
+      <div class="header">
+        <h1>LP GAP</h1>
+        <div class="sub">League Points Comparator</div>
+      </div>
 
-  <div class="form">
-    <div class="field">
-      <label>Jugador 1</label>
-      <input id="p1" placeholder="Nombre#Tag" autocomplete="off" spellcheck="false" />
-    </div>
-    <div class="field">
-      <label>Jugador 2</label>
-      <input id="p2" placeholder="Nombre#Tag" autocomplete="off" spellcheck="false" />
-    </div>
-    <div class="field">
-      <label>Región</label>
-      <div class="regions" id="regions"></div>
-    </div>
-    <button class="compare-btn" id="btn" disabled>Comparar</button>
-  </div>
+      <div class="form">
+        <div class="field">
+          <label>Jugador 1</label>
+          <input id="p1" placeholder="Nombre#Tag" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label>Jugador 2</label>
+          <input id="p2" placeholder="Nombre#Tag" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="field">
+          <label>Región</label>
+          <div class="regions" id="regions"></div>
+        </div>
+        <button class="compare-btn" id="btn" disabled>Comparar</button>
+      </div>
 
-  <div id="error" class="error" hidden></div>
-  <div id="loading" class="loading" hidden>
-    <div class="spinner"></div>
-    <span id="load-msg">Buscando invocadores...</span>
-  </div>
-  <div id="results" class="results" hidden></div>
-  <div style="margin-top:40px;text-align:center;font-size:9px;color:#2a2b35;letter-spacing:.1em">
-    MMR data by <a href="https://whatismymmr.com" style="color:#3a3b47" target="_blank">WhatIsMyMMR</a> · CC BY 4.0
+      <div id="error" class="error" hidden></div>
+      <div id="loading" class="loading" hidden>
+        <div class="spinner"></div>
+        <span id="load-msg">Buscando invocadores...</span>
+      </div>
+      <div id="results" class="results" hidden></div>
+      <div style="margin-top:40px;text-align:center;font-size:9px;color:#2a2b35;letter-spacing:.1em">
+        MMR data by <a href="https://whatismymmr.com" style="color:#3a3b47" target="_blank">WhatIsMyMMR</a> · CC BY 4.0
+      </div>
+    </div>
+
+    <!-- Sidebar ladder -->
+    <aside class="sidebar">
+      <div class="ladder-card">
+        <div class="ladder-header">
+          <span class="ladder-title">Ranking Amigos</span>
+          <button class="refresh-btn" id="refresh-btn" onclick="refreshLadder()" title="Actualizar">↻</button>
+        </div>
+
+        <!-- GM / Challenger cutoffs -->
+        <div class="cutoffs">
+          <div class="cutoff-item">
+            <img
+              class="cutoff-emblem"
+              src="https://ddragon.leagueoflegends.com/cdn/img/ranked-emblems/Emblem_Grandmaster.png"
+              alt="Grandmaster"
+            />
+            <div>
+              <div class="cutoff-tier">Grandmaster</div>
+              <div class="cutoff-lp" id="cutoff-gm-lp">— LP</div>
+            </div>
+          </div>
+          <div class="cutoff-item">
+            <img
+              class="cutoff-emblem"
+              src="https://ddragon.leagueoflegends.com/cdn/img/ranked-emblems/Emblem_Challenger.png"
+              alt="Challenger"
+            />
+            <div>
+              <div class="cutoff-tier">Challenger</div>
+              <div class="cutoff-lp" id="cutoff-chal-lp">— LP</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ladder-divider"></div>
+
+        <div class="ladder-list" id="ladder-list">
+          <div class="ladder-skeleton"></div>
+          <div class="ladder-skeleton"></div>
+          <div class="ladder-skeleton"></div>
+        </div>
+
+        <div class="ladder-footer">
+          <span class="ladder-updated" id="ladder-updated">Cargando...</span>
+        </div>
+      </div>
+    </aside>
   </div>
 
 <script>
@@ -303,26 +554,25 @@ const REGIONS = [
 const TIERS = ["IRON","BRONZE","SILVER","GOLD","PLATINUM","EMERALD","DIAMOND","MASTER","GRANDMASTER","CHALLENGER"];
 const DIVS  = ["IV","III","II","I"];
 const TIER_COLORS = {
-  IRON:      { bg:"#8B8589", text:"#fff" },
-  BRONZE:    { bg:"#CD7F32", text:"#fff" },
-  SILVER:    { bg:"#9ca3af", text:"#000" },
-  GOLD:      { bg:"#f0b232", text:"#000" },
-  PLATINUM:  { bg:"#47C9AF", text:"#000" },
-  EMERALD:   { bg:"#50C878", text:"#000" },
-  DIAMOND:   { bg:"#B9F2FF", text:"#000" },
-  MASTER:    { bg:"#9B59B6", text:"#fff" },
-  GRANDMASTER:{ bg:"#E74C3C", text:"#fff" },
-  CHALLENGER:{ bg:"#F1C40F", text:"#000" },
-  UNRANKED:  { bg:"#3a3b47", text:"#fff" },
+  IRON:        { bg:"#8B8589", text:"#fff" },
+  BRONZE:      { bg:"#CD7F32", text:"#fff" },
+  SILVER:      { bg:"#9ca3af", text:"#000" },
+  GOLD:        { bg:"#f0b232", text:"#000" },
+  PLATINUM:    { bg:"#47C9AF", text:"#000" },
+  EMERALD:     { bg:"#50C878", text:"#000" },
+  DIAMOND:     { bg:"#B9F2FF", text:"#000" },
+  MASTER:      { bg:"#9B59B6", text:"#fff" },
+  GRANDMASTER: { bg:"#E74C3C", text:"#fff" },
+  CHALLENGER:  { bg:"#F1C40F", text:"#000" },
+  UNRANKED:    { bg:"#3a3b47", text:"#fff" },
 };
 
 let region = "euw";
-let ddragonVersion = "15.7.1"; // fallback
+let ddragonVersion = "15.7.1";
 const $p1 = document.getElementById("p1");
 const $p2 = document.getElementById("p2");
 const $btn = document.getElementById("btn");
 
-// Fetch latest ddragon version
 fetch("https://ddragon.leagueoflegends.com/api/versions.json")
   .then(r => r.json())
   .then(v => { if (v && v[0]) ddragonVersion = v[0]; })
@@ -373,20 +623,18 @@ function tierKey(r) {
   return (r && r.tier !== "Unranked") ? r.tier.toUpperCase() : "UNRANKED";
 }
 
-// Progress bar logic
 function getProgressInfo(r) {
   if (!r || r.tier === "Unranked") return { label: "UNRANKED", pct: 0, left: "—", right: "—", valueTxt: "0 LP" };
   const t = r.tier.toUpperCase();
   const idx = TIERS.indexOf(t);
 
   if (idx >= 7) {
-    // Master+ : show progress toward next tier or within tier
     const lpInTier = r.lp;
-    if (idx === 7) { // Master
+    if (idx === 7) {
       return { label: "MASTER → CHALLENGER", pct: Math.min((lpInTier/1600)*100, 100),
         left: "M 0 LP", right: "C", valueTxt: `${lpInTier} LP` };
     }
-    if (idx === 8) { // GM
+    if (idx === 8) {
       return { label: "GRANDMASTER", pct: Math.min((lpInTier/1800)*100, 100),
         left: "GM 0 LP", right: "C", valueTxt: `${lpInTier} LP` };
     }
@@ -394,24 +642,22 @@ function getProgressInfo(r) {
       left: "C", right: `${lpInTier} LP`, valueTxt: `${lpInTier} LP` };
   }
 
-  // Normal tiers: progress through division (0-100 LP)
   const divIdx = DIVS.indexOf((r.division||"").toUpperCase());
   const divLabel = r.division || "IV";
-  const nextDiv = divIdx < 3 ? DIVS[divIdx+1] : (idx < 6 ? TIERS[idx+1].charAt(0)+TIERS[idx+1].slice(1).toLowerCase()+" IV" : "Master");
   const pct = Math.min(r.lp, 100);
   return {
     label: `${r.tier} ${divLabel}`,
     pct: pct,
     left: "0 LP",
-    right: divIdx < 3 ? `${r.tier} ${DIVS[divIdx+1]}` : (idx < 9 ? TIERS[idx+1].charAt(0)+TIERS[idx+1].slice(1).toLowerCase() : "—"),
+    right: divIdx < 3 ? `${r.tier} ${DIVS[divIdx+1]}` : (TIERS.indexOf(t) < 9 ? TIERS[TIERS.indexOf(t)+1].charAt(0)+TIERS[TIERS.indexOf(t)+1].slice(1).toLowerCase() : "—"),
     valueTxt: `${r.lp} LP`
   };
 }
 
 function esc(s) { const d=document.createElement("div"); d.textContent=s; return d.innerHTML; }
 
-async function fetchRank(name, tag) {
-  const res = await fetch(`/api/rank?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}&region=${region}`);
+async function fetchRank(name, tag, reg) {
+  const res = await fetch(`/api/rank?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}&region=${reg}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Error");
   return data;
@@ -461,7 +707,6 @@ function buildPlayerCard(riotId, r, mmrData) {
   const opggUrl = `https://www.op.gg/summoners/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
   const deeplolUrl = `https://www.deeplol.gg/summoner/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
 
-  // Build MMR blocks - only ranked
   let mmrHtml = '';
   if (mmr) {
     mmrHtml = '<div class="mmr-row">';
@@ -552,8 +797,8 @@ async function compare() {
 
   try {
     const [r1, r2, m1, m2] = await Promise.all([
-      fetchRank(id1[0], id1[1]),
-      fetchRank(id2[0], id2[1]),
+      fetchRank(id1[0], id1[1], region),
+      fetchRank(id2[0], id2[1], region),
       fetchMMR(id1[0], id1[1]),
       fetchMMR(id2[0], id2[1]),
     ]);
@@ -567,7 +812,6 @@ async function compare() {
     const mmr1 = m1 && m1.ranked ? m1.ranked.mmr : null;
     const mmr2 = m2 && m2.ranked ? m2.ranked.mmr : null;
     const mmrDiff = (mmr1 != null && mmr2 != null) ? Math.abs(mmr1 - mmr2) : null;
-    const mmrLeader = (mmr1 != null && mmr2 != null) ? (mmr1 >= mmr2 ? 1 : 2) : null;
 
     const box = document.getElementById("results");
     box.innerHTML = `
@@ -589,7 +833,6 @@ async function compare() {
     `;
     box.hidden = false;
 
-    // Animate progress bars
     requestAnimationFrame(() => {
       setTimeout(() => {
         box.querySelectorAll('.lp-fill').forEach(bar => {
@@ -603,6 +846,142 @@ async function compare() {
   }
   setLoading(false);
 }
+
+// ── Ladder ──────────────────────────────────────────────────────────────────
+
+const LADDER_PLAYERS = ["KoldoAbalos#PSOE", "ElBachu#123", "stellar#ACO"];
+const LADDER_REGION  = "euw";
+
+let ladderLastUpdated = null;
+let ladderRefreshing  = false;
+
+async function fetchLadderRank(riotId) {
+  const [name, tag] = riotId.split("#");
+  try {
+    const res = await fetch(
+      `/api/rank?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}&region=${LADDER_REGION}`
+    );
+    const data = await res.json();
+    if (!res.ok) return { riotId, error: true };
+    return { riotId, ...data };
+  } catch {
+    return { riotId, error: true };
+  }
+}
+
+async function fetchCutoffs() {
+  try {
+    const res = await fetch(`/api/cutoff?region=${LADDER_REGION}`);
+    return await res.json();
+  } catch {
+    return { challengerMin: null, grandmasterMin: null };
+  }
+}
+
+function ladderRankStr(p) {
+  if (!p || p.tier === "Unranked") return "Sin rankear";
+  const idx = TIERS.indexOf(p.tier.toUpperCase());
+  if (idx >= 7) return `${p.tier} · ${p.lp} LP`;
+  return `${p.tier} ${p.division} · ${p.lp} LP`;
+}
+
+function renderLadder(players, cutoffs) {
+  const sorted = [...players].sort((a, b) => {
+    if (a.error && b.error) return 0;
+    if (a.error) return 1;
+    if (b.error) return -1;
+    return toLP(b.tier, b.division, b.lp) - toLP(a.tier, a.division, a.lp);
+  });
+
+  const posColors = ["var(--gold)", "#9ca3af", "#CD7F32"];
+
+  const listEl = document.getElementById("ladder-list");
+  listEl.innerHTML = sorted.map((p, i) => {
+    if (p.error) {
+      return `<div class="ladder-row">
+        <span class="ladder-pos" style="color:${posColors[i]||'var(--dim)'}">#${i+1}</span>
+        <div class="ladder-info" style="margin-left:46px">
+          <div class="ladder-name">${esc(p.riotId.split("#")[0])}</div>
+          <div class="ladder-rank-str" style="color:var(--red)">Error al cargar</div>
+        </div>
+      </div>`;
+    }
+
+    const tk = tierKey(p);
+    const tc = TIER_COLORS[tk] || TIER_COLORS.UNRANKED;
+    const total = p.wins + p.losses;
+    const wrPct = total ? Math.round((p.wins / total) * 100) : 0;
+    const wrColor = wrPct >= 55 ? "var(--green)" : wrPct >= 50 ? "var(--text)" : "var(--red)";
+    const name = p.riotId.split("#")[0];
+
+    return `<div class="ladder-row">
+      <span class="ladder-pos" style="color:${posColors[i]||'var(--dim)'}">#${i+1}</span>
+      <div class="ladder-avatar" style="border-color:${tc.bg}">
+        <img src="${iconUrl(p.iconId || 29)}" alt="${esc(name)}" loading="lazy" />
+      </div>
+      <div class="ladder-info">
+        <div class="ladder-name">${esc(name)}</div>
+        <div class="ladder-rank-str">
+          <span class="ladder-tier-dot" style="background:${tc.bg}"></span>${ladderRankStr(p)}
+        </div>
+      </div>
+      <div class="ladder-wr">
+        <div class="ladder-wr-val" style="color:${wrColor}">${wrPct}%</div>
+        <div class="ladder-wr-games">${total}G</div>
+      </div>
+    </div>`;
+  }).join("");
+
+  // Update cutoff display
+  if (cutoffs) {
+    const gmEl   = document.getElementById("cutoff-gm-lp");
+    const chalEl = document.getElementById("cutoff-chal-lp");
+    if (gmEl)   gmEl.textContent   = cutoffs.grandmasterMin != null ? `${cutoffs.grandmasterMin} LP` : "— LP";
+    if (chalEl) chalEl.textContent = cutoffs.challengerMin  != null ? `${cutoffs.challengerMin} LP`  : "— LP";
+  }
+}
+
+function updateLadderTime() {
+  const el = document.getElementById("ladder-updated");
+  if (!el) return;
+  if (!ladderLastUpdated) { el.textContent = "No actualizado"; return; }
+  const diff = Math.floor((Date.now() - ladderLastUpdated) / 1000);
+  if (diff < 5)    el.textContent = "Actualizado ahora";
+  else if (diff < 60)   el.textContent = `Actualizado hace ${diff}s`;
+  else if (diff < 3600) el.textContent = `Actualizado hace ${Math.floor(diff/60)}min`;
+  else              el.textContent = `Actualizado hace ${Math.floor(diff/3600)}h`;
+}
+
+async function refreshLadder() {
+  if (ladderRefreshing) return;
+  ladderRefreshing = true;
+
+  const btn = document.getElementById("refresh-btn");
+  btn.classList.add("spinning");
+  btn.disabled = true;
+
+  document.getElementById("ladder-list").innerHTML =
+    '<div class="ladder-skeleton"></div>' +
+    '<div class="ladder-skeleton"></div>' +
+    '<div class="ladder-skeleton"></div>';
+
+  const [players, cutoffs] = await Promise.all([
+    Promise.all(LADDER_PLAYERS.map(fetchLadderRank)),
+    fetchCutoffs(),
+  ]);
+
+  renderLadder(players, cutoffs);
+
+  ladderLastUpdated = Date.now();
+  updateLadderTime();
+
+  btn.classList.remove("spinning");
+  btn.disabled = false;
+  ladderRefreshing = false;
+}
+
+setInterval(updateLadderTime, 30000);
+refreshLadder();
 </script>
 </body>
 </html>
