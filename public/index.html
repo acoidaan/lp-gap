@@ -1382,7 +1382,7 @@
       }
 
       function ladderRankStr(p) {
-        if (!p || p.tier === "Unranked") return "Sin rankear";
+        if (!p || p.tier === "Unranked") return "Unranked";
         const idx = TIERS.indexOf(p.tier.toUpperCase());
         if (idx >= 7) return `${p.tier} · ${p.lp} LP`;
         return `${p.tier} ${p.division} · ${p.lp} LP`;
