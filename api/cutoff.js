@@ -31,15 +31,31 @@ module.exports = async (req, res) => {
       ),
     ]);
 
-    const chal = await chalRes.json();
-    const gm = await gmRes.json();
+    if (!chalRes.ok) {
+      const body = await chalRes.text().catch(() => "");
+      console.error("CUTOFF Challenger API error:", chalRes.status, body);
+    }
+    if (!gmRes.ok) {
+      const body = await gmRes.text().catch(() => "");
+      console.error("CUTOFF Grandmaster API error:", gmRes.status, body);
+    }
 
-    const chalMin = chal.entries?.length
-      ? Math.min(...chal.entries.map((e) => e.leaguePoints))
-      : null;
-    const gmMin = gm.entries?.length
-      ? Math.min(...gm.entries.map((e) => e.leaguePoints))
-      : null;
+    const chal = chalRes.ok ? await chalRes.json() : null;
+    const gm = gmRes.ok ? await gmRes.json() : null;
+
+    const minLP = (data) =>
+      data?.entries?.length
+        ? data.entries.reduce(
+            (m, e) => (typeof e.leaguePoints === "number" && e.leaguePoints < m ? e.leaguePoints : m),
+            Infinity
+          )
+        : null;
+
+    const chalRaw = minLP(chal);
+    const gmRaw = minLP(gm);
+
+    const chalMin = chalRaw === Infinity ? null : chalRaw;
+    const gmMin = gmRaw === Infinity ? null : gmRaw;
 
     res.setHeader("Cache-Control", "s-maxage=300");
     res.json({ challengerMin: chalMin, grandmasterMin: gmMin });

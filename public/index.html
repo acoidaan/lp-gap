@@ -267,7 +267,7 @@
 
     /* ── Sidebar ── */
     .sidebar {
-      width: 290px;
+      width: 320px;
       flex-shrink: 0;
       position: sticky;
       top: 40px;
@@ -314,38 +314,48 @@
     .refresh-btn:disabled { opacity: .4; cursor: not-allowed; }
     .refresh-btn.spinning { animation: spin .7s linear infinite; }
 
-    /* Cutoffs */
+    /* Cutoffs (stacked vertically) */
     .cutoffs {
       display: flex;
+      flex-direction: column;
       gap: 8px;
       margin-bottom: 16px;
     }
     .cutoff-item {
-      flex: 1;
       background: var(--bg);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 10px 10px 8px;
+      padding: 8px 12px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
     }
     .cutoff-emblem {
-      width: 36px; height: 36px;
+      width: 38px; height: 38px;
       object-fit: contain;
       flex-shrink: 0;
       filter: drop-shadow(0 0 4px rgba(0,0,0,.5));
     }
+    .cutoff-text {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
     .cutoff-tier {
-      font-size: 9px; font-weight: 700;
-      letter-spacing: .08em; text-transform: uppercase;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: .12em; text-transform: uppercase;
       color: var(--dim);
-      margin-bottom: 2px;
     }
     .cutoff-lp {
-      font-size: 13px; font-weight: 800;
+      font-size: 14px; font-weight: 800;
       color: var(--text);
+      flex-shrink: 0;
     }
+    .cutoff-item.gm .cutoff-tier { color: #E74C3C; }
+    .cutoff-item.chal .cutoff-tier { color: #F1C40F; }
 
     /* Ladder divider */
     .ladder-divider {
@@ -400,15 +410,23 @@
       position: relative; top: -1px;
     }
 
-    .ladder-wr {
-      text-align: right; flex-shrink: 0;
+    .ladder-stats {
+      text-align: right;
+      flex-shrink: 0;
+      min-width: 58px;
     }
+    .ladder-wl {
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      margin-bottom: 3px;
+    }
+    .ladder-w  { color: var(--green); }
+    .ladder-l  { color: var(--red); }
+    .ladder-sep{ color: var(--faint); margin: 0 2px; }
     .ladder-wr-val {
-      font-size: 12px; font-weight: 700;
-    }
-    .ladder-wr-games {
-      font-size: 9px; color: var(--dim); font-weight: 500;
-      margin-top: 1px;
+      font-size: 12px;
+      font-weight: 800;
     }
 
     /* Skeleton loading */
@@ -506,26 +524,28 @@
 
         <!-- GM / Challenger cutoffs -->
         <div class="cutoffs">
-          <div class="cutoff-item">
+          <div class="cutoff-item gm">
             <img
               class="cutoff-emblem"
-              src="https://ddragon.leagueoflegends.com/cdn/img/ranked-emblems/Emblem_Grandmaster.png"
+              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-grandmaster.png"
               alt="Grandmaster"
+              onerror="this.style.display='none'"
             />
-            <div>
-              <div class="cutoff-tier">Grandmaster</div>
-              <div class="cutoff-lp" id="cutoff-gm-lp">— LP</div>
+            <div class="cutoff-text">
+              <span class="cutoff-tier">Grandmaster</span>
+              <span class="cutoff-lp" id="cutoff-gm-lp">— LP</span>
             </div>
           </div>
-          <div class="cutoff-item">
+          <div class="cutoff-item chal">
             <img
               class="cutoff-emblem"
-              src="https://ddragon.leagueoflegends.com/cdn/img/ranked-emblems/Emblem_Challenger.png"
+              src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-challenger.png"
               alt="Challenger"
+              onerror="this.style.display='none'"
             />
-            <div>
-              <div class="cutoff-tier">Challenger</div>
-              <div class="cutoff-lp" id="cutoff-chal-lp">— LP</div>
+            <div class="cutoff-text">
+              <span class="cutoff-tier">Challenger</span>
+              <span class="cutoff-lp" id="cutoff-chal-lp">— LP</span>
             </div>
           </div>
         </div>
@@ -872,10 +892,20 @@ async function fetchLadderRank(riotId) {
 async function fetchCutoffs() {
   try {
     const res = await fetch(`/api/cutoff?region=${LADDER_REGION}`);
-    return await res.json();
-  } catch {
+    const data = await res.json();
+    if (!res.ok) {
+      console.warn("[cutoff]", res.status, data);
+      return { challengerMin: null, grandmasterMin: null };
+    }
+    return data;
+  } catch (e) {
+    console.warn("[cutoff] fetch failed:", e.message);
     return { challengerMin: null, grandmasterMin: null };
   }
+}
+
+function fmtCutoffLP(v) {
+  return (typeof v === "number" && v > 0) ? `${v} LP` : "— LP";
 }
 
 function ladderRankStr(p) {
@@ -925,20 +955,20 @@ function renderLadder(players, cutoffs) {
           <span class="ladder-tier-dot" style="background:${tc.bg}"></span>${ladderRankStr(p)}
         </div>
       </div>
-      <div class="ladder-wr">
-        <div class="ladder-wr-val" style="color:${wrColor}">${wrPct}%</div>
-        <div class="ladder-wr-games">${total}G</div>
+      <div class="ladder-stats">
+        <div class="ladder-wl">
+          <span class="ladder-w">${p.wins}W</span><span class="ladder-sep">/</span><span class="ladder-l">${p.losses}L</span>
+        </div>
+        <div class="ladder-wr-val" style="color:${wrColor}">${wrPct}% WR</div>
       </div>
     </div>`;
   }).join("");
 
   // Update cutoff display
-  if (cutoffs) {
-    const gmEl   = document.getElementById("cutoff-gm-lp");
-    const chalEl = document.getElementById("cutoff-chal-lp");
-    if (gmEl)   gmEl.textContent   = cutoffs.grandmasterMin != null ? `${cutoffs.grandmasterMin} LP` : "— LP";
-    if (chalEl) chalEl.textContent = cutoffs.challengerMin  != null ? `${cutoffs.challengerMin} LP`  : "— LP";
-  }
+  const gmEl   = document.getElementById("cutoff-gm-lp");
+  const chalEl = document.getElementById("cutoff-chal-lp");
+  if (gmEl)   gmEl.textContent   = fmtCutoffLP(cutoffs && cutoffs.grandmasterMin);
+  if (chalEl) chalEl.textContent = fmtCutoffLP(cutoffs && cutoffs.challengerMin);
 }
 
 function updateLadderTime() {
