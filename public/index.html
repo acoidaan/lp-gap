@@ -710,12 +710,42 @@
       }
       .ladder-spark {
         display: block;
-        margin-top: 4px;
-        margin-left: auto;
         opacity: 0.85;
       }
       .ladder-spark.flat {
         opacity: 0.4;
+      }
+      .spark-wrap {
+        position: relative;
+        display: inline-block;
+        margin-top: 4px;
+        cursor: help;
+      }
+      .spark-tooltip {
+        position: absolute;
+        bottom: calc(100% + 6px);
+        right: 0;
+        padding: 5px 9px;
+        background: var(--card2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        color: var(--dim);
+        pointer-events: none;
+        opacity: 0;
+        transform: translateY(2px);
+        transition:
+          opacity 0.15s,
+          transform 0.15s;
+        z-index: 20;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+      }
+      .spark-wrap:hover .spark-tooltip {
+        opacity: 1;
+        transform: translateY(0);
       }
 
       /* Skeleton loading */
@@ -1400,15 +1430,46 @@
           if (!raw) return [];
           const arr = JSON.parse(raw);
           return arr
-            .map((s) => s.lps[riotId])
-            .filter((v) => typeof v === "number");
+            .filter((s) => typeof s.lps[riotId] === "number")
+            .map((s) => ({ ts: s.ts, lp: s.lps[riotId] }));
         } catch {
           return [];
         }
       }
 
-      function sparklineSvg(values, width = 56, height = 14) {
-        if (values.length < 2) return "";
+      function lpDelta(history, hours = 24) {
+        if (history.length < 2) return null;
+        const target = Date.now() - hours * 3600 * 1000;
+        const latest = history[history.length - 1];
+        // Snapshot más reciente que sea anterior al objetivo (24h atrás).
+        // Si no hay ninguno tan antiguo, usamos el más viejo disponible.
+        let reference = history[0];
+        for (let i = history.length - 1; i >= 0; i--) {
+          if (history[i].ts <= target) {
+            reference = history[i];
+            break;
+          }
+        }
+        return {
+          delta: latest.lp - reference.lp,
+          spanMs: latest.ts - reference.ts,
+        };
+      }
+
+      function fmtSpan(ms) {
+        const s = Math.floor(ms / 1000);
+        if (s < 60) return `${s}s`;
+        const m = Math.floor(s / 60);
+        if (m < 60) return `${m}min`;
+        const h = Math.floor(m / 60);
+        if (h < 48) return `${h}h`;
+        const d = Math.floor(h / 24);
+        return `${d}d`;
+      }
+
+      function sparklineSvg(history, width = 56, height = 14) {
+        if (history.length < 2) return "";
+        const values = history.map((h) => h.lp);
         const min = Math.min(...values);
         const max = Math.max(...values);
         const range = max - min;
@@ -1583,7 +1644,24 @@
                   : "var(--red)";
             const [name, tag] = p.riotId.split("#");
             const opggUrl = `https://www.op.gg/summoners/${LADDER_REGION}/${encodeURIComponent(name)}-${encodeURIComponent(tag || "")}`;
-            const sparkHtml = sparklineSvg(getPlayerHistory(p.riotId));
+            const history = getPlayerHistory(p.riotId);
+            const sparkSvg = sparklineSvg(history);
+            let sparkBlockHtml = "";
+            if (sparkSvg) {
+              const d = lpDelta(history, 24);
+              let tipHtml = "";
+              if (d) {
+                const sign = d.delta > 0 ? "+" : "";
+                const dColor =
+                  d.delta > 0
+                    ? "var(--green)"
+                    : d.delta < 0
+                      ? "var(--red)"
+                      : "var(--dim)";
+                tipHtml = `<span class="spark-tooltip"><span style="color:${dColor}">${sign}${d.delta} LP</span> · ${fmtSpan(d.spanMs)}</span>`;
+              }
+              sparkBlockHtml = `<div class="spark-wrap">${sparkSvg}${tipHtml}</div>`;
+            }
 
             return `<div class="ladder-row">
       <span class="ladder-pos" style="color:${posColors[i] || "var(--dim)"}">#${i + 1}</span>
@@ -1601,7 +1679,7 @@
           <span class="ladder-w">${p.wins}W</span><span class="ladder-sep">/</span><span class="ladder-l">${p.losses}L</span>
         </div>
         <div class="ladder-wr-val" style="color:${wrColor}">${wrPct}% WR</div>
-        ${sparkHtml}
+        ${sparkBlockHtml}
       </div>
     </div>`;
           })
