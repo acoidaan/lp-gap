@@ -351,6 +351,18 @@
         border-radius: 8px;
         letter-spacing: 0.05em;
       }
+      .player-rank-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .player-rank-emblem {
+        width: 44px;
+        height: 44px;
+        object-fit: contain;
+        flex-shrink: 0;
+        filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+      }
 
       /* Stats row */
       .stats-row {
@@ -696,6 +708,15 @@
         font-size: 12px;
         font-weight: 800;
       }
+      .ladder-spark {
+        display: block;
+        margin-top: 4px;
+        margin-left: auto;
+        opacity: 0.85;
+      }
+      .ladder-spark.flat {
+        opacity: 0.4;
+      }
 
       /* Skeleton loading */
       .ladder-skeleton {
@@ -949,6 +970,7 @@
       REGIONS.forEach((r) => {
         const b = document.createElement("button");
         b.textContent = r.l;
+        b.dataset.region = r.v;
         if (r.v === region) b.className = "active";
         b.onclick = () => {
           region = r.v;
@@ -957,6 +979,38 @@
         };
         $reg.appendChild(b);
       });
+
+      function setRegion(reg) {
+        if (!REGIONS.some((r) => r.v === reg)) return;
+        region = reg;
+        $reg.querySelectorAll("button").forEach((b) => {
+          b.className = b.dataset.region === reg ? "active" : "";
+        });
+      }
+
+      function emblemUrl(tier) {
+        if (!tier || tier === "Unranked") return null;
+        return `https://opgg-static.akamaized.net/images/medals_new/${tier.toLowerCase()}.png`;
+      }
+      function emblemFallback(tier) {
+        return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${tier.toLowerCase()}.png`;
+      }
+
+      function animateNumber(el, target, prefix = "", duration = 900) {
+        if (!el) return;
+        if (target === 0) {
+          el.textContent = prefix + "0";
+          return;
+        }
+        const start = performance.now();
+        function tick(now) {
+          const t = Math.min(1, (now - start) / duration);
+          const eased = 1 - Math.pow(1 - t, 3);
+          el.textContent = prefix + Math.round(target * eased);
+          if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      }
 
       function check() {
         $btn.disabled = !($p1.value.includes("#") && $p2.value.includes("#"));
@@ -1164,8 +1218,15 @@
             </div>
           </div>
         </div>
-        <div class="player-rank-badge" style="background:${tc.bg};color:${tc.text}">
-          ${fmtRank(r)}
+        <div class="player-rank-wrap">
+          ${
+            r.tier && r.tier !== "Unranked"
+              ? `<img class="player-rank-emblem" src="${emblemUrl(r.tier)}" alt="${esc(r.tier)}" onerror="this.onerror=null;this.src='${emblemFallback(r.tier)}';" />`
+              : ""
+          }
+          <div class="player-rank-badge" style="background:${tc.bg};color:${tc.text}">
+            ${fmtRank(r)}
+          </div>
         </div>
       </div>
 
@@ -1212,6 +1273,15 @@
         if (id1.length !== 2 || id2.length !== 2)
           return showError("Formato: Nombre#Tag");
 
+        try {
+          const params = new URLSearchParams({
+            p1: $p1.value.trim(),
+            p2: $p2.value.trim(),
+            region,
+          });
+          history.replaceState(null, "", "?" + params.toString());
+        } catch {}
+
         hideError();
         document.getElementById("results").hidden = true;
         setLoading(true);
@@ -1242,7 +1312,7 @@
           box.innerHTML = `
       <div class="gap-card">
         <div class="label">LP Gap</div>
-        <div class="value">${diff === 0 ? "0" : "+" + diff}</div>
+        <div class="value">0</div>
         <div class="leader">${
           diff === 0
             ? "Mismo rango"
@@ -1253,7 +1323,7 @@
             ? `
         <div class="mmr-gap">
           <span class="mmr-gap-label">MMR Gap</span>
-          <span class="mmr-gap-value">${mmrDiff === 0 ? "0" : "+" + mmrDiff}</span>
+          <span class="mmr-gap-value">0</span>
         </div>`
             : ""
         }
@@ -1268,6 +1338,18 @@
               box.querySelectorAll(".lp-fill").forEach((bar) => {
                 bar.style.width = bar.dataset.target + "%";
               });
+              animateNumber(
+                box.querySelector(".gap-card .value"),
+                diff,
+                diff > 0 ? "+" : "",
+              );
+              if (mmrDiff != null) {
+                animateNumber(
+                  box.querySelector(".mmr-gap-value"),
+                  mmrDiff,
+                  mmrDiff > 0 ? "+" : "",
+                );
+              }
             }, 80);
           });
         } catch (e) {
@@ -1295,6 +1377,64 @@
       const LADDER_REGION = "euw";
       const LADDER_CACHE_KEY = "lpgap_ladder_v1";
       const LADDER_CACHE_TTL = 5 * 60 * 1000; // 5 min
+      const LADDER_HISTORY_KEY = "lpgap_ladder_history_v1";
+      const LADDER_HISTORY_MAX = 30;
+
+      function appendLadderHistory(players) {
+        try {
+          const raw = localStorage.getItem(LADDER_HISTORY_KEY);
+          const arr = raw ? JSON.parse(raw) : [];
+          const lps = {};
+          for (const p of players) {
+            if (!p.error) lps[p.riotId] = toLP(p.tier, p.division, p.lp);
+          }
+          arr.push({ ts: Date.now(), lps });
+          while (arr.length > LADDER_HISTORY_MAX) arr.shift();
+          localStorage.setItem(LADDER_HISTORY_KEY, JSON.stringify(arr));
+        } catch {}
+      }
+
+      function getPlayerHistory(riotId) {
+        try {
+          const raw = localStorage.getItem(LADDER_HISTORY_KEY);
+          if (!raw) return [];
+          const arr = JSON.parse(raw);
+          return arr
+            .map((s) => s.lps[riotId])
+            .filter((v) => typeof v === "number");
+        } catch {
+          return [];
+        }
+      }
+
+      function sparklineSvg(values, width = 56, height = 14) {
+        if (values.length < 2) return "";
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const range = max - min;
+        const trend = values[values.length - 1] - values[0];
+        const color =
+          range === 0
+            ? "var(--dim)"
+            : trend > 0
+              ? "var(--green)"
+              : trend < 0
+                ? "var(--red)"
+                : "var(--dim)";
+        const stepX = width / (values.length - 1);
+        const points = values
+          .map((v, i) => {
+            const x = i * stepX;
+            const y =
+              range === 0
+                ? height / 2
+                : height - 1 - ((v - min) / range) * (height - 2);
+            return `${x.toFixed(1)},${y.toFixed(1)}`;
+          })
+          .join(" ");
+        const flatClass = range === 0 ? " flat" : "";
+        return `<svg class="ladder-spark${flatClass}" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" aria-hidden="true"><polyline fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" points="${points}" /></svg>`;
+      }
 
       // Tamaño de tanda y pausa entre tandas. Cada jugador implica 3 llamadas a
       // Riot internamente (account, summoner, league), así que con BATCH_SIZE=4
@@ -1443,6 +1583,7 @@
                   : "var(--red)";
             const [name, tag] = p.riotId.split("#");
             const opggUrl = `https://www.op.gg/summoners/${LADDER_REGION}/${encodeURIComponent(name)}-${encodeURIComponent(tag || "")}`;
+            const sparkHtml = sparklineSvg(getPlayerHistory(p.riotId));
 
             return `<div class="ladder-row">
       <span class="ladder-pos" style="color:${posColors[i] || "var(--dim)"}">#${i + 1}</span>
@@ -1460,6 +1601,7 @@
           <span class="ladder-w">${p.wins}W</span><span class="ladder-sep">/</span><span class="ladder-l">${p.losses}L</span>
         </div>
         <div class="ladder-wr-val" style="color:${wrColor}">${wrPct}% WR</div>
+        ${sparkHtml}
       </div>
     </div>`;
           })
@@ -1521,6 +1663,9 @@
           fetchCutoffs(),
         ]);
 
+        // Guardamos el snapshot antes de renderizar para que el sparkline incluya
+        // el LP actual (último punto de la línea).
+        appendLadderHistory(players);
         renderLadder(players, cutoffs);
 
         // Cacheamos siempre, aunque algún jugador venga con error. El TTL de
@@ -1542,6 +1687,21 @@
 
       setInterval(updateLadderTime, 30000);
       refreshLadder();
+
+      // URL compartible: precarga inputs y dispara comparación desde query params
+      (function loadFromUrl() {
+        try {
+          const url = new URL(location.href);
+          const reg = url.searchParams.get("region");
+          if (reg) setRegion(reg);
+          const p1 = url.searchParams.get("p1");
+          const p2 = url.searchParams.get("p2");
+          if (p1) $p1.value = p1;
+          if (p2) $p2.value = p2;
+          check();
+          if ($p1.value.includes("#") && $p2.value.includes("#")) compare();
+        } catch {}
+      })();
     </script>
   </body>
 </html>
