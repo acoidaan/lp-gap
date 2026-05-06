@@ -834,7 +834,7 @@
           "
         >
           MMR data by
-          <a
+          
             href="https://whatismymmr.com"
             style="color: #3a3b47"
             target="_blank"
@@ -1314,6 +1314,14 @@
       const LADDER_CACHE_KEY = "lpgap_ladder_v1";
       const LADDER_CACHE_TTL = 5 * 60 * 1000; // 5 min
 
+      // Tamaño de tanda y pausa entre tandas. Cada jugador implica 3 llamadas a
+      // Riot internamente (account, summoner, league), así que con BATCH_SIZE=4
+      // disparamos como mucho 12 peticiones simultáneas. La pausa de ~1.1s deja
+      // margen frente a los 20 req/s y, sumando todas las tandas, también frente
+      // al límite de 100 req cada 2 minutos de la dev key.
+      const LADDER_BATCH_SIZE = 4;
+      const LADDER_BATCH_DELAY_MS = 1100;
+
       let ladderLastUpdated = null;
       let ladderRefreshing = false;
 
@@ -1363,6 +1371,27 @@
         } catch (e) {
           return { riotId, error: "Sin conexión" };
         }
+      }
+
+      // Procesa la lista de jugadores en tandas pequeñas con una pausa entre
+      // ellas para no saturar la API de Riot. Devuelve los resultados en el
+      // mismo orden que la lista original.
+      async function fetchLadderInBatches(
+        players,
+        batchSize = LADDER_BATCH_SIZE,
+        delayMs = LADDER_BATCH_DELAY_MS,
+      ) {
+        const results = [];
+        for (let i = 0; i < players.length; i += batchSize) {
+          const batch = players.slice(i, i + batchSize);
+          const batchResults = await Promise.all(batch.map(fetchLadderRank));
+          results.push(...batchResults);
+          // Solo pausamos si quedan tandas por delante; evita la espera final.
+          if (i + batchSize < players.length) {
+            await new Promise((resolve) => setTimeout(resolve, delayMs));
+          }
+        }
+        return results;
       }
 
       async function fetchCutoffs() {
@@ -1503,16 +1532,20 @@
           '<div class="ladder-skeleton"></div>' +
           '<div class="ladder-skeleton"></div>';
 
+        // Cargamos los cutoffs en paralelo con la primera tanda. Las peticiones
+        // a /api/rank salen escalonadas dentro de fetchLadderInBatches.
         const [players, cutoffs] = await Promise.all([
-          Promise.all(LADDER_PLAYERS.map(fetchLadderRank)),
+          fetchLadderInBatches(LADDER_PLAYERS),
           fetchCutoffs(),
         ]);
 
         renderLadder(players, cutoffs);
 
-        // Only cache successful loads (avoid sticky rate-limit errors)
-        const allOk = players.every((p) => !p.error);
-        if (allOk) saveLadderCache(players, cutoffs);
+        // Cacheamos siempre, aunque algún jugador venga con error. El TTL de
+        // 5 min limita lo "rancia" que puede quedar la información, y a cambio
+        // evitamos el círculo vicioso anterior: si nunca se cacheaba, cada
+        // recarga volvía a disparar todas las peticiones contra Riot.
+        saveLadderCache(players, cutoffs);
 
         ladderLastUpdated = Date.now();
         updateLadderTime();

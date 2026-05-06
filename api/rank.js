@@ -61,6 +61,11 @@ module.exports = async (req, res) => {
 
     const solo = (ranks || []).find((e) => e.queueType === "RANKED_SOLO_5x5");
 
+    // Edge cache de Vercel: la respuesta se cachea 2 min y se sigue sirviendo
+    // (stale) hasta 10 min mientras se revalida en background. Así, varios
+    // usuarios consultando el mismo jugador no multiplican las llamadas a Riot.
+    res.setHeader("Cache-Control", "s-maxage=120, stale-while-revalidate=600");
+
     if (!solo) {
       return res.json({
         tier: "Unranked",
