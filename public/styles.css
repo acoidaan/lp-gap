@@ -634,6 +634,12 @@ input:focus {
   gap: 10px;
   min-width: 0;
 }
+.challenge-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+}
 .challenge-avatar {
   width: 42px;
   height: 42px;
@@ -648,11 +654,27 @@ input:focus {
   object-fit: cover;
   display: block;
 }
+.challenge-player.is-in-game .challenge-avatar {
+  border-color: var(--red);
+}
 .challenge-player-copy {
   min-width: 0;
 }
+.challenge-player-namerow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.challenge-player-namerow > a {
+  display: inline-block;
+}
+.challenge-player-namerow .ladder-live-champ img {
+  width: 22px;
+  height: 22px;
+}
 .challenge-player-copy a {
-  display: block;
   color: var(--text);
   font-size: 14px;
   font-weight: 800;
@@ -812,6 +834,142 @@ input:focus {
   text-align: center;
   font-size: 12px;
   font-weight: 700;
+}
+
+/* Countdown */
+.challenge-countdown {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 18px;
+  margin-bottom: 14px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.challenge-countdown::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, var(--magenta), var(--gold), var(--green));
+  opacity: 0.7;
+}
+.countdown-status {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.countdown-status.active {
+  color: var(--red);
+}
+.countdown-status.ended {
+  color: var(--dim);
+}
+.countdown-label {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.countdown-units {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 64px;
+  padding: 12px 8px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.countdown-num {
+  font-size: 28px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1;
+}
+.countdown-name {
+  margin-top: 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.countdown-dates {
+  margin-top: 14px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
+
+/* Rules */
+.challenge-rules {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 22px;
+  margin-top: 14px;
+}
+.challenge-rules-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 12px;
+}
+.challenge-rules-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.challenge-rules-list li {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.5;
+  padding-left: 18px;
+  position: relative;
+}
+.challenge-rules-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+.challenge-rules-list strong {
+  color: var(--gold);
+  font-weight: 800;
+}
+.challenge-rules-list a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  transition: text-decoration-color 0.15s;
+}
+.challenge-rules-list a:hover {
+  text-decoration-color: var(--gold);
 }
 
 /* Sidebar */

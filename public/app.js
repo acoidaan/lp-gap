@@ -126,9 +126,93 @@ function setActiveView(view) {
     section.hidden = section.id !== `${view}-view`;
   });
   document.body.classList.toggle("view-challenge", view === "challenge");
-  if (view === "challenge") refreshChallenge();
-  else if (typeof refreshLiveStatus === "function" && lastLadderPlayers.length)
-    refreshLiveStatus();
+  if (view === "challenge") {
+    refreshChallenge();
+    startCountdown();
+  } else {
+    stopCountdown();
+    if (typeof refreshLiveStatus === "function" && lastLadderPlayers.length)
+      refreshLiveStatus();
+  }
+}
+
+// Fechas en hora de Canarias (WEST = UTC+1 en agosto). Empieza el 1 de
+// agosto a las 00:00, termina el 1 de septiembre a las 00:00 (no incluido).
+const CHALLENGE_START = new Date("2026-08-01T00:00:00+01:00");
+const CHALLENGE_END = new Date("2026-09-01T00:00:00+01:00");
+let countdownTimer = null;
+
+function challengeState() {
+  const now = Date.now();
+  if (now < CHALLENGE_START.getTime()) return "upcoming";
+  if (now < CHALLENGE_END.getTime()) return "active";
+  return "ended";
+}
+
+function updateCountdown() {
+  const statusEl = document.getElementById("countdown-status");
+  const labelEl = document.getElementById("countdown-label");
+  const unitsEl = document.getElementById("countdown-units");
+  if (!statusEl || !labelEl || !unitsEl) return;
+
+  const state = challengeState();
+  statusEl.classList.remove("active", "ended");
+
+  let target = null;
+  if (state === "upcoming") {
+    statusEl.textContent = "Próximamente";
+    labelEl.textContent = "Empieza en";
+    target = CHALLENGE_START.getTime();
+  } else if (state === "active") {
+    statusEl.textContent = "🔴 EN MARCHA";
+    statusEl.classList.add("active");
+    labelEl.textContent = "Termina en";
+    target = CHALLENGE_END.getTime();
+  } else {
+    statusEl.textContent = "Reto terminado";
+    statusEl.classList.add("ended");
+    labelEl.textContent = "Cerrado el 1 sep 2026";
+  }
+
+  if (target === null) {
+    unitsEl.style.display = "none";
+    return;
+  }
+  unitsEl.style.display = "flex";
+
+  const diff = Math.max(0, target - Date.now());
+  const total = Math.floor(diff / 1000);
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+
+  document.getElementById("cd-days").textContent = String(days);
+  document.getElementById("cd-hours").textContent = String(hours).padStart(
+    2,
+    "0",
+  );
+  document.getElementById("cd-minutes").textContent = String(minutes).padStart(
+    2,
+    "0",
+  );
+  document.getElementById("cd-seconds").textContent = String(seconds).padStart(
+    2,
+    "0",
+  );
+}
+
+function startCountdown() {
+  if (countdownTimer) return;
+  updateCountdown();
+  countdownTimer = setInterval(updateCountdown, 1000);
+}
+
+function stopCountdown() {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+    countdownTimer = null;
+  }
 }
 
 function toLP(tier, div, lp) {
@@ -879,13 +963,22 @@ function challengePlayerCard(player, leader) {
   const rankText = fmtRank(player);
   const opggUrl = `https://www.op.gg/summoners/${CHALLENGE_REGION}/${encodeURIComponent(info.name)}-${encodeURIComponent(info.tag || "")}`;
 
-  return `<div class="challenge-player ${leader ? "leading" : ""}">
+  const twitchLink = buildTwitchLink(player.riotId, "ladder");
+
+  return `<div class="challenge-player ${leader ? "leading" : ""}" data-riot-id="${esc(player.riotId)}">
     <div class="challenge-player-main">
-      <div class="challenge-avatar" style="border-color:${tc.bg}">
-        <img src="${iconUrl(player.iconId || 29)}" alt="${esc(info.name)}" />
+      <div class="challenge-avatar-wrap">
+        <div class="challenge-avatar" style="border-color:${tc.bg}">
+          <img src="${iconUrl(player.iconId || 29)}" alt="${esc(info.name)}" />
+        </div>
+        <span class="live-pip" hidden></span>
       </div>
       <div class="challenge-player-copy">
-        <a href="${opggUrl}" target="_blank" rel="noopener">${esc(info.name)}</a>
+        <div class="challenge-player-namerow">
+          <a href="${opggUrl}" target="_blank" rel="noopener">${esc(info.name)}</a>
+          ${twitchLink}
+          <span class="ladder-live-champ" hidden></span>
+        </div>
         <span>#${esc(info.tag || "")}</span>
       </div>
     </div>
@@ -998,6 +1091,11 @@ function renderChallenge(players, history, historySource = "local") {
       </div>
     </div>
   `;
+
+  // Pintar indicadores live en las tarjetas recién creadas. Si la última
+  // poll del ranking todavía no ha corrido, simplemente no habrá nada que
+  // aplicar — el siguiente tick de polling lo refrescará.
+  if (typeof applyLiveIndicators === "function") applyLiveIndicators();
 }
 
 async function refreshChallenge(force = false) {
@@ -1526,7 +1624,10 @@ function fmtGameLength(seconds) {
 }
 
 function applyLiveIndicators() {
-  document.querySelectorAll(".ladder-row[data-riot-id]").forEach((row) => {
+  // Selector genérico: cualquier elemento con data-riot-id (filas del
+  // ranking + tarjetas del challenge) reusa los mismos slots .live-pip,
+  // .ladder-live-champ y .stream-link-ladder[data-twitch-channel].
+  document.querySelectorAll("[data-riot-id]").forEach((row) => {
     const riotId = row.dataset.riotId;
 
     // In-game
@@ -1584,19 +1685,15 @@ function applyLiveIndicators() {
   });
 }
 
-function isLadderVisible() {
-  return !document.body.classList.contains("view-challenge");
-}
-
 function startLivePolling(players) {
+  // Polling continuo: el ranking y la vista del challenge comparten estado
+  // (liveStatus), así que mantenemos la misma cadencia siempre. Para cada
+  // jugador hace 1 request a /api/live cada 60s — bajo coste con el cache
+  // edge de Vercel y compatible con la dev key de Riot.
   lastLadderPlayers = players || [];
   stopLivePolling();
-  if (!isLadderVisible()) return;
   refreshLiveStatus();
-  livePollTimer = setInterval(() => {
-    if (!isLadderVisible()) return;
-    refreshLiveStatus();
-  }, LIVE_POLL_MS);
+  livePollTimer = setInterval(refreshLiveStatus, LIVE_POLL_MS);
 }
 
 function stopLivePolling() {
