@@ -125,6 +125,7 @@ function setActiveView(view) {
   $views.forEach((section) => {
     section.hidden = section.id !== `${view}-view`;
   });
+  document.body.classList.toggle("view-challenge", view === "challenge");
   if (view === "challenge") refreshChallenge();
 }
 
@@ -944,8 +945,10 @@ function renderChallenge(players, history, historySource = "local") {
   const leaderName = parseRiotId(leader.riotId).name;
   const trailingName = parseRiotId(trailing.riotId).name;
   const maxLp = Math.max(p1.totalLp, p2.totalLp, 1);
-  const p1Pct = Math.max(8, Math.round((p1.totalLp / maxLp) * 100));
-  const p2Pct = Math.max(8, Math.round((p2.totalLp / maxLp) * 100));
+  const p1Pct =
+    p1.totalLp === 0 ? 0 : Math.max(8, Math.round((p1.totalLp / maxLp) * 100));
+  const p2Pct =
+    p2.totalLp === 0 ? 0 : Math.max(8, Math.round((p2.totalLp / maxLp) * 100));
   const verdict =
     diff === 0
       ? "Empate absoluto"

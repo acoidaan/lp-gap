@@ -116,6 +116,13 @@ body {
   display: none;
 }
 
+body.view-challenge .sidebar {
+  display: none;
+}
+body.view-challenge .page-layout {
+  justify-content: center;
+}
+
 /* Form */
 .form {
   width: 100%;
