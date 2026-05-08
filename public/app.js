@@ -262,6 +262,8 @@ function parseRiotId(riotId) {
 
 const TWITCH_CHANNELS = {
   "koldoabalos#psoe": "Votillas",
+  "stellar#aco": "xstellar_",
+  "CAL Destroyersit#EUW": "destr0lol",
 };
 
 function twitchChannelForRiotId(riotId) {
@@ -431,12 +433,29 @@ function drawPlayerSharePanel(ctx, player, x, y, w, h) {
 
   fillRoundRect(ctx, avatarX, avatarY, avatarSize, avatarSize, 16, tc.bg);
   if (player.iconImage) {
-    drawClippedImage(ctx, player.iconImage, avatarX, avatarY, avatarSize, avatarSize, 16);
+    drawClippedImage(
+      ctx,
+      player.iconImage,
+      avatarX,
+      avatarY,
+      avatarSize,
+      avatarSize,
+      16,
+    );
   } else {
     ctx.fillStyle = tc.text;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    drawFittedText(ctx, player.name.slice(0, 1).toUpperCase() || "?", x + 62, y + 67, 46, 38, 24, 900);
+    drawFittedText(
+      ctx,
+      player.name.slice(0, 1).toUpperCase() || "?",
+      x + 62,
+      y + 67,
+      46,
+      38,
+      24,
+      900,
+    );
   }
   strokeRoundRect(ctx, avatarX, avatarY, avatarSize, avatarSize, 16, tc.bg, 4);
 
@@ -445,7 +464,16 @@ function drawPlayerSharePanel(ctx, player, x, y, w, h) {
   ctx.fillStyle = "#e8e8e8";
   drawFittedText(ctx, player.name, x + 116, y + 62, w - 260, 34, 22, 800);
   ctx.fillStyle = "#6b6d7b";
-  drawFittedText(ctx, `#${player.tag || "-"}`, x + 116, y + 91, w - 260, 22, 18, 700);
+  drawFittedText(
+    ctx,
+    `#${player.tag || "-"}`,
+    x + 116,
+    y + 91,
+    w - 260,
+    22,
+    18,
+    700,
+  );
 
   ctx.textAlign = "right";
   ctx.fillStyle = "#3a3b47";
@@ -455,13 +483,29 @@ function drawPlayerSharePanel(ctx, player, x, y, w, h) {
   fillRoundRect(ctx, x + 30, y + 122, w - 60, 48, 14, tc.bg);
   ctx.fillStyle = tc.text;
   ctx.textAlign = "center";
-  drawFittedText(ctx, fmtRank(player.rank), x + w / 2, y + 153, w - 90, 26, 16, 900);
+  drawFittedText(
+    ctx,
+    fmtRank(player.rank),
+    x + w / 2,
+    y + 153,
+    w - 90,
+    26,
+    16,
+    900,
+  );
 
   const statY = y + 194;
   const statW = (w - 72) / 3;
   drawShareStat(ctx, "LP", String(rankLP(player.rank)), x + 26, statY, statW);
   drawShareStat(ctx, "WR", `${wr}%`, x + 36 + statW, statY, statW);
-  drawShareStat(ctx, "W / L", `${player.rank.wins || 0} / ${player.rank.losses || 0}`, x + 46 + statW * 2, statY, statW);
+  drawShareStat(
+    ctx,
+    "W / L",
+    `${player.rank.wins || 0} / ${player.rank.losses || 0}`,
+    x + 46 + statW * 2,
+    statY,
+    statW,
+  );
 }
 
 async function makeShareCanvas(data) {
@@ -509,7 +553,11 @@ async function makeShareCanvas(data) {
   ctx.fillText("LP GAP", canvas.width / 2, 184);
   ctx.fillStyle = "#f0b232";
   ctx.font = "900 96px Inter, Arial, sans-serif";
-  ctx.fillText(`${data.diff > 0 ? "+" : ""}${data.diff}`, canvas.width / 2, 268);
+  ctx.fillText(
+    `${data.diff > 0 ? "+" : ""}${data.diff}`,
+    canvas.width / 2,
+    268,
+  );
   ctx.fillStyle = "#6b6d7b";
   ctx.font = "700 24px Inter, Arial, sans-serif";
   drawFittedText(ctx, data.leaderText, canvas.width / 2, 306, 360, 24, 16, 800);
@@ -599,11 +647,7 @@ function buildPlayerCard(riotId, r) {
   const total = r.wins + r.losses;
   const wrPct = total ? Math.round((r.wins / total) * 100) : 0;
   const wrColor =
-    wrPct >= 55
-      ? "var(--green)"
-      : wrPct >= 50
-        ? "var(--text)"
-        : "var(--red)";
+    wrPct >= 55 ? "var(--green)" : wrPct >= 50 ? "var(--text)" : "var(--red)";
   const prog = getProgressInfo(r);
   const icon = r.iconId || 29;
 
@@ -731,7 +775,9 @@ async function compare() {
   <div class="label">LP Gap</div>
   <div class="value">0</div>
   <div class="leader">${
-    diff === 0 ? "Mismo rango" : `<strong>${esc(leaderName)}</strong> va por delante`
+    diff === 0
+      ? "Mismo rango"
+      : `<strong>${esc(leaderName)}</strong> va por delante`
   }</div>
   <div class="share-panel">
     <div class="share-actions">
@@ -767,10 +813,7 @@ ${buildPlayerCard(p2Id, r2)}
 
 // Challenge
 
-const CHALLENGE_PLAYERS = [
-  "SevillanaEnjoyer#CARLA",
-  "CAL Destroyersit#EUW",
-];
+const CHALLENGE_PLAYERS = ["SevillanaEnjoyer#CARLA", "CAL Destroyersit#EUW"];
 const CHALLENGE_REGION = "euw";
 const CHALLENGE_HISTORY_KEY = "lpgap_challenge_history_v1";
 const CHALLENGE_HISTORY_MAX = 90;
@@ -1001,9 +1044,9 @@ async function refreshChallenge(force = false) {
   }
 }
 
-document.getElementById("challenge-refresh")?.addEventListener("click", () =>
-  refreshChallenge(true),
-);
+document
+  .getElementById("challenge-refresh")
+  ?.addEventListener("click", () => refreshChallenge(true));
 
 // Ladder
 
@@ -1225,9 +1268,7 @@ function renderLadder(players, cutoffs) {
     if (a.error && b.error) return 0;
     if (a.error) return 1;
     if (b.error) return -1;
-    return (
-      toLP(b.tier, b.division, b.lp) - toLP(a.tier, a.division, a.lp)
-    );
+    return toLP(b.tier, b.division, b.lp) - toLP(a.tier, a.division, a.lp);
   });
 
   const posColors = ["var(--gold)", "#9ca3af", "#CD7F32"];
@@ -1307,8 +1348,7 @@ function renderLadder(players, cutoffs) {
   // Update cutoff display
   const gmEl = document.getElementById("cutoff-gm-lp");
   const chalEl = document.getElementById("cutoff-chal-lp");
-  if (gmEl)
-    gmEl.textContent = fmtCutoffLP(cutoffs && cutoffs.grandmasterMin);
+  if (gmEl) gmEl.textContent = fmtCutoffLP(cutoffs && cutoffs.grandmasterMin);
   if (chalEl)
     chalEl.textContent = fmtCutoffLP(cutoffs && cutoffs.challengerMin);
 }
@@ -1379,8 +1419,7 @@ async function refreshLadder(force = false) {
   ladderRefreshing = false;
 }
 
-document.getElementById("refresh-btn").onclick = () =>
-  refreshLadder(true);
+document.getElementById("refresh-btn").onclick = () => refreshLadder(true);
 
 setInterval(updateLadderTime, 30000);
 refreshLadder();
