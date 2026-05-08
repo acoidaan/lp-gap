@@ -344,49 +344,55 @@ function drawFittedText(ctx, text, x, y, maxWidth, maxSize, minSize, weight) {
   ctx.fillText(text, x, y, maxWidth);
 }
 
+function drawShareStat(ctx, label, value, x, y, w) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#6b6d7b";
+  ctx.font = "800 16px Inter, Arial, sans-serif";
+  ctx.fillText(label, x + w / 2, y);
+
+  ctx.fillStyle = "#e8e8e8";
+  drawFittedText(ctx, value, x + w / 2, y + 38, w - 10, 34, 22, 900);
+}
+
 function drawPlayerSharePanel(ctx, player, x, y, w, h) {
   const tk = tierKey(player.rank);
   const tc = TIER_COLORS[tk] || TIER_COLORS.UNRANKED;
   const wr = winRate(player.rank);
   const total = totalGames(player.rank);
 
-  fillRoundRect(ctx, x, y, w, h, 24, "#16171e");
-  strokeRoundRect(ctx, x, y, w, h, 24, "#2a2b35", 2);
+  fillRoundRect(ctx, x, y, w, h, 22, "#16171e");
+  strokeRoundRect(ctx, x, y, w, h, 22, "#2a2b35", 2);
+  fillRoundRect(ctx, x, y, w, 6, 22, tc.bg);
 
-  fillRoundRect(ctx, x + 34, y + 36, 72, 72, 18, tc.bg);
+  fillRoundRect(ctx, x + 30, y + 34, 64, 64, 16, tc.bg);
   ctx.fillStyle = tc.text;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  drawFittedText(ctx, player.name.slice(0, 1).toUpperCase() || "?", x + 70, y + 73, 52, 42, 24, 900);
+  drawFittedText(ctx, player.name.slice(0, 1).toUpperCase() || "?", x + 62, y + 67, 46, 38, 24, 900);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
   ctx.fillStyle = "#e8e8e8";
-  drawFittedText(ctx, player.name, x + 128, y + 66, w - 162, 34, 22, 800);
+  drawFittedText(ctx, player.name, x + 116, y + 62, w - 260, 34, 22, 800);
   ctx.fillStyle = "#6b6d7b";
-  drawFittedText(ctx, `#${player.tag || "-"}`, x + 128, y + 96, w - 162, 22, 18, 600);
+  drawFittedText(ctx, `#${player.tag || "-"}`, x + 116, y + 91, w - 260, 22, 18, 700);
 
-  fillRoundRect(ctx, x + 34, y + 132, w - 68, 56, 14, tc.bg);
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#3a3b47";
+  ctx.font = "800 16px Inter, Arial, sans-serif";
+  ctx.fillText(`${total} PARTIDAS`, x + w - 30, y + 70);
+
+  fillRoundRect(ctx, x + 30, y + 122, w - 60, 48, 14, tc.bg);
   ctx.fillStyle = tc.text;
   ctx.textAlign = "center";
-  drawFittedText(ctx, fmtRank(player.rank), x + w / 2, y + 168, w - 94, 24, 16, 900);
+  drawFittedText(ctx, fmtRank(player.rank), x + w / 2, y + 153, w - 90, 26, 16, 900);
 
-  ctx.textAlign = "left";
-  ctx.fillStyle = "#6b6d7b";
-  ctx.font = "700 18px Inter, Arial, sans-serif";
-  ctx.fillText("LP", x + 42, y + 236);
-  ctx.fillText("WR", x + w / 2 - 20, y + 236);
-  ctx.fillText("W / L", x + w - 146, y + 236);
-
-  ctx.fillStyle = "#e8e8e8";
-  ctx.font = "900 34px Inter, Arial, sans-serif";
-  ctx.fillText(String(rankLP(player.rank)), x + 42, y + 278);
-  ctx.fillText(`${wr}%`, x + w / 2 - 20, y + 278);
-  drawFittedText(ctx, `${player.rank.wins || 0} / ${player.rank.losses || 0}`, x + w - 146, y + 278, 110, 34, 22, 900);
-
-  ctx.fillStyle = "#3a3b47";
-  ctx.font = "700 16px Inter, Arial, sans-serif";
-  ctx.fillText(`${total} partidas`, x + 42, y + h - 38);
+  const statY = y + 194;
+  const statW = (w - 72) / 3;
+  drawShareStat(ctx, "LP", String(rankLP(player.rank)), x + 26, statY, statW);
+  drawShareStat(ctx, "WR", `${wr}%`, x + 36 + statW, statY, statW);
+  drawShareStat(ctx, "W / L", `${player.rank.wins || 0} / ${player.rank.losses || 0}`, x + 46 + statW * 2, statY, statW);
 }
 
 function makeShareCanvas(data) {
@@ -408,30 +414,33 @@ function makeShareCanvas(data) {
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
   ctx.fillStyle = "#f0b232";
-  ctx.font = "900 46px Inter, Arial, sans-serif";
-  ctx.fillText("LP GAP", 72, 88);
+  ctx.font = "900 48px Inter, Arial, sans-serif";
+  ctx.fillText("LP GAP", 72, 82);
   ctx.fillStyle = "#6b6d7b";
   ctx.font = "700 22px Inter, Arial, sans-serif";
-  ctx.fillText(`${data.regionLabel} SOLOQ COMPARISON`, 72, 124);
+  ctx.fillText(`${data.regionLabel} SOLOQ COMPARISON`, 72, 118);
 
   ctx.textAlign = "right";
   ctx.fillStyle = "#3a3b47";
   ctx.font = "700 22px Inter, Arial, sans-serif";
-  ctx.fillText("lpgap", canvas.width - 72, 88);
+  ctx.fillText("lpgap", canvas.width - 72, 82);
+
+  fillRoundRect(ctx, 376, 138, 448, 194, 28, "#16171e");
+  strokeRoundRect(ctx, 376, 138, 448, 194, 28, "#2a2b35", 2);
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#e8e8e8";
   ctx.font = "800 24px Inter, Arial, sans-serif";
-  ctx.fillText("LP GAP", canvas.width / 2, 176);
+  ctx.fillText("LP GAP", canvas.width / 2, 184);
   ctx.fillStyle = "#f0b232";
-  ctx.font = "900 92px Inter, Arial, sans-serif";
-  ctx.fillText(`${data.diff > 0 ? "+" : ""}${data.diff}`, canvas.width / 2, 276);
+  ctx.font = "900 96px Inter, Arial, sans-serif";
+  ctx.fillText(`${data.diff > 0 ? "+" : ""}${data.diff}`, canvas.width / 2, 268);
   ctx.fillStyle = "#6b6d7b";
   ctx.font = "700 24px Inter, Arial, sans-serif";
-  drawFittedText(ctx, data.leaderText, canvas.width / 2, 318, 900, 24, 16, 700);
+  drawFittedText(ctx, data.leaderText, canvas.width / 2, 306, 360, 24, 16, 800);
 
-  drawPlayerSharePanel(ctx, data.players[0], 72, 360, 500, 250);
-  drawPlayerSharePanel(ctx, data.players[1], 628, 360, 500, 250);
+  drawPlayerSharePanel(ctx, data.players[0], 72, 370, 500, 245);
+  drawPlayerSharePanel(ctx, data.players[1], 628, 370, 500, 245);
 
   return canvas;
 }
