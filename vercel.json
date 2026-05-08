@@ -5,10 +5,6 @@
     {
       "path": "/api/challenge-snapshot",
       "schedule": "0 7 * * *"
-    },
-    {
-      "path": "/api/ladder-snapshot",
-      "schedule": "5 7 * * *"
     }
   ]
 }
