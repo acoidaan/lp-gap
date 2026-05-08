@@ -1,4 +1,8 @@
-const { isTwitchConfigured, fetchStreams } = require("./_twitch");
+const {
+  filterKnownTwitchChannels,
+  isTwitchConfigured,
+  fetchStreams,
+} = require("./_twitch");
 
 module.exports = async (req, res) => {
   if (!isTwitchConfigured()) {
@@ -10,11 +14,7 @@ module.exports = async (req, res) => {
     return res.json({ configured: true, streams: {} });
   }
 
-  const channels = channelsParam
-    .split(",")
-    .map((c) => c.trim().toLowerCase())
-    .filter(Boolean)
-    .slice(0, 100); // Helix admite hasta 100 user_login por request
+  const channels = filterKnownTwitchChannels(channelsParam.split(","));
 
   if (channels.length === 0) {
     return res.json({ configured: true, streams: {} });

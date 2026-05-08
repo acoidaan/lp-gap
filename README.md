@@ -1,17 +1,37 @@
 # lp-gap
-League of Legends LP comparator
 
-## Environment
+League of Legends LP comparator.
 
-Required:
+## Configuracion
 
-- `RIOT_API_KEY`: Riot API key used by the serverless endpoints.
+Copia `.env.example` a `.env.local` para desarrollo local. En Vercel, configura
+estas variables desde Project Settings.
 
-Optional for permanent SoloQ Challenge history:
+Requeridas:
 
-- `DATABASE_URL`: Neon/Postgres connection string.
-- `CRON_SECRET`: secret used by Vercel Cron when calling `/api/challenge-snapshot`.
+- `RIOT_API_KEY`: Riot API key usada por los endpoints serverless.
+- `CRON_SECRET`: secreto para proteger `/api/challenge-snapshot` y
+  `/api/twitch-watch` en produccion.
 
-The challenge history endpoint falls back to browser `localStorage` when
-`DATABASE_URL` is not configured. Vercel Cron runs `/api/challenge-snapshot`
-daily at 07:00 UTC.
+Opcionales:
+
+- `DATABASE_URL`, `POSTGRES_URL` o `NEON_DATABASE_URL`: conexion Neon/Postgres
+  para guardar historico permanente del SoloQ Challenge.
+- `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET`: credenciales Helix para detectar
+  directos de Twitch.
+- `DISCORD_WEBHOOK_URL`: webhook para publicar recaps y avisos.
+- `DISCORD_BOT_TOKEN` y `DISCORD_VOICE_CHANNEL_ID`: bot para crear hilos y
+  renombrar el canal de voz del reto.
+
+Sin base de datos, el historico del reto cae a `localStorage` en el navegador.
+Vercel Cron ejecuta `/api/challenge-snapshot` a diario a las 07:00 UTC.
+
+## Seguridad
+
+- No subas `.env`, `.env.local` ni cadenas de conexion reales al repositorio.
+- Si una credencial ha estado alguna vez en git, rotala en el proveedor y
+  actualiza la variable correspondiente en Vercel.
+- Los endpoints de escritura fallan cerrados en produccion cuando no existe
+  `CRON_SECRET`.
+- Los webhooks de Discord se envian con `allowed_mentions` desactivado para
+  evitar menciones accidentales como `@everyone`.

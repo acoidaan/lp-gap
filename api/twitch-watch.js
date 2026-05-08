@@ -1,10 +1,14 @@
 const { isAuthorized, isDatabaseConfigured, sqlClient } = require("./_challenge");
-const { isTwitchConfigured, fetchStreams } = require("./_twitch");
+const {
+  WATCHED_TWITCH_CHANNELS,
+  isTwitchConfigured,
+  fetchStreams,
+} = require("./_twitch");
 const { postWebhook, isDiscordConfigured } = require("./_discord");
 
 // Canales del grupo. Si añades streamers nuevos a TWITCH_CHANNELS en
 // public/app.js, mete aquí también su handle (en minúsculas).
-const TWITCH_CHANNELS = ["votillas", "xstellar_", "destr0lol"];
+const TWITCH_CHANNELS = WATCHED_TWITCH_CHANNELS;
 
 async function ensureSchema(sql) {
   await sql`

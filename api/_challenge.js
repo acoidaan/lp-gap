@@ -27,7 +27,7 @@ function databaseUrl() {
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
     process.env.NEON_DATABASE_URL ||
-    "postgresql://neondb_owner:npg_OGh8PiA4jIsw@ep-wispy-smoke-abimyzt2-pooler.eu-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require"
+    ""
   );
 }
 
@@ -290,9 +290,15 @@ async function listSnapshots() {
 
 function isAuthorized(req) {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
-  const auth = req.headers.authorization || "";
-  return auth === `Bearer ${secret}` || req.query.secret === secret;
+  const isProductionRuntime =
+    process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+  if (!secret) return !isProductionRuntime;
+
+  const auth =
+    req.headers.authorization ||
+    req.headers.Authorization ||
+    "";
+  return auth === `Bearer ${secret}`;
 }
 
 module.exports = {

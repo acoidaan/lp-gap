@@ -1,10 +1,36 @@
 // Cache de token a nivel de módulo: si la función está caliente, evitamos
 // re-autenticar en cada request. En frío vuelve a pedir token (rápido).
+const PUBLIC_TWITCH_CHANNELS = ["votillas", "xstellar_", "destr0lol", "elmiillor"];
+const WATCHED_TWITCH_CHANNELS = ["votillas", "xstellar_", "destr0lol"];
+const PUBLIC_TWITCH_CHANNEL_SET = new Set(PUBLIC_TWITCH_CHANNELS);
+
 let cachedToken = null;
 let cachedTokenExpiresAt = 0;
 
 function isTwitchConfigured() {
   return Boolean(process.env.TWITCH_CLIENT_ID && process.env.TWITCH_CLIENT_SECRET);
+}
+
+function normalizeTwitchChannel(channel) {
+  return String(channel || "").trim().toLowerCase();
+}
+
+function filterKnownTwitchChannels(channels) {
+  const filtered = [];
+  const seen = new Set();
+  for (const channel of channels || []) {
+    const normalized = normalizeTwitchChannel(channel);
+    if (
+      !normalized ||
+      seen.has(normalized) ||
+      !PUBLIC_TWITCH_CHANNEL_SET.has(normalized)
+    ) {
+      continue;
+    }
+    seen.add(normalized);
+    filtered.push(normalized);
+  }
+  return filtered.slice(0, 100);
 }
 
 async function getAppAccessToken() {
@@ -74,4 +100,11 @@ async function fetchStreams(channels) {
   return streams;
 }
 
-module.exports = { isTwitchConfigured, getAppAccessToken, fetchStreams };
+module.exports = {
+  PUBLIC_TWITCH_CHANNELS,
+  WATCHED_TWITCH_CHANNELS,
+  filterKnownTwitchChannels,
+  isTwitchConfigured,
+  getAppAccessToken,
+  fetchStreams,
+};

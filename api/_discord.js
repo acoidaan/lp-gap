@@ -1,6 +1,10 @@
 async function postWebhook(payload, opts = {}) {
   const url = process.env.DISCORD_WEBHOOK_URL;
   if (!url) return { skipped: true, reason: "DISCORD_WEBHOOK_URL no configurada" };
+  const body = {
+    ...payload,
+    allowed_mentions: payload.allowed_mentions || { parse: [] },
+  };
 
   // Con wait=true Discord nos devuelve el objeto del mensaje (incluye id),
   // que necesitamos luego para crear un hilo encima.
@@ -8,7 +12,7 @@ async function postWebhook(payload, opts = {}) {
   const res = await fetch(fullUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
