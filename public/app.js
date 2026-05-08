@@ -245,6 +245,29 @@ function parseRiotId(riotId) {
   };
 }
 
+const TWITCH_CHANNELS = {
+  "koldoabalos#psoe": "Votillas",
+};
+
+function twitchChannelForRiotId(riotId) {
+  const id = parseRiotId(riotId);
+  return TWITCH_CHANNELS[`${id.name}#${id.tag}`.toLowerCase()] || null;
+}
+
+function buildTwitchLink(riotId, variant = "player") {
+  const handle = twitchChannelForRiotId(riotId);
+  if (!handle) return "";
+
+  const url = `https://www.twitch.tv/${encodeURIComponent(handle)}`;
+  const label = variant === "ladder" ? "TW" : "Twitch";
+  const cls =
+    variant === "ladder"
+      ? "stream-link stream-link-ladder"
+      : "ext-link stream-link";
+
+  return `<a href="${url}" target="_blank" rel="noopener" class="${cls}" title="Twitch: ${esc(handle)}">${label}</a>`;
+}
+
 function rankLP(r) {
   return r && typeof r.lp === "number" ? r.lp : 0;
 }
@@ -573,6 +596,7 @@ function buildPlayerCard(riotId, r) {
   const rawTag = parts[1] || "";
   const opggUrl = `https://www.op.gg/summoners/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
   const deeplolUrl = `https://www.deeplol.gg/summoner/${region}/${encodeURIComponent(rawName)}-${encodeURIComponent(rawTag)}`;
+  const twitchLink = buildTwitchLink(riotId);
 
   return `
     <div class="player-card">
@@ -586,6 +610,7 @@ function buildPlayerCard(riotId, r) {
         ${name}<span class="player-tag"> #${tag}</span>
         <a href="${opggUrl}" target="_blank" class="ext-link">OP.GG</a>
         <a href="${deeplolUrl}" target="_blank" class="ext-link">DeepLoL</a>
+        ${twitchLink}
       </div>
     </div>
   </div>
@@ -960,10 +985,11 @@ function renderLadder(players, cutoffs) {
           typeof p.error === "string" ? p.error : "Error al cargar";
         const [errName, errTag] = p.riotId.split("#");
         const errOpgg = `https://www.op.gg/summoners/${LADDER_REGION}/${encodeURIComponent(errName)}-${encodeURIComponent(errTag || "")}`;
+        const errTwitchLink = buildTwitchLink(p.riotId, "ladder");
         return `<div class="ladder-row">
   <span class="ladder-pos" style="color:${posColors[i] || "var(--dim)"}">#${i + 1}</span>
   <div class="ladder-info" style="margin-left:46px">
-    <div class="ladder-name"><a href="${errOpgg}" target="_blank" rel="noopener">${esc(errName)}</a></div>
+    <div class="ladder-name"><a href="${errOpgg}" target="_blank" rel="noopener">${esc(errName)}</a>${errTwitchLink}</div>
     <div class="ladder-rank-str" style="color:var(--red)">${esc(errMsg)}</div>
   </div>
 </div>`;
@@ -981,6 +1007,7 @@ function renderLadder(players, cutoffs) {
             : "var(--red)";
       const [name, tag] = p.riotId.split("#");
       const opggUrl = `https://www.op.gg/summoners/${LADDER_REGION}/${encodeURIComponent(name)}-${encodeURIComponent(tag || "")}`;
+      const twitchLink = buildTwitchLink(p.riotId, "ladder");
       const history = getPlayerHistory(p.riotId);
       const sparkSvg = sparklineSvg(history);
       let sparkBlockHtml = "";
@@ -1006,7 +1033,7 @@ function renderLadder(players, cutoffs) {
   <img src="${iconUrl(p.iconId || 29)}" alt="${esc(name)}" loading="lazy" />
 </div>
 <div class="ladder-info">
-  <div class="ladder-name"><a href="${opggUrl}" target="_blank" rel="noopener">${esc(name)}</a></div>
+  <div class="ladder-name"><a href="${opggUrl}" target="_blank" rel="noopener">${esc(name)}</a>${twitchLink}</div>
   <div class="ladder-rank-str">
     <span class="ladder-tier-dot" style="background:${tc.bg}"></span>${ladderRankStr(p)}
   </div>

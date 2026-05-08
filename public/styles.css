@@ -361,6 +361,16 @@ input:focus {
   color: #8b8d9b;
   border-color: #4a4b57;
 }
+.stream-link {
+  color: #c4b5fd;
+  background: #24143f;
+  border-color: #5b3aa1;
+}
+.stream-link:hover {
+  color: #fff;
+  border-color: #9146ff;
+  background: #321a5d;
+}
 .player-rank-badge {
   font-size: 13px;
   font-weight: 800;
@@ -648,6 +658,26 @@ input:focus {
 }
 .ladder-name a:hover {
   color: var(--gold);
+}
+.ladder-name a.stream-link-ladder {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 5px;
+  color: #c4b5fd;
+  background: #24143f;
+  border: 1px solid #5b3aa1;
+  border-radius: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  vertical-align: middle;
+}
+.ladder-name a.stream-link-ladder:hover {
+  color: #fff;
+  border-color: #9146ff;
+  background: #321a5d;
 }
 .ladder-rank-str {
   font-size: 10px;
