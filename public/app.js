@@ -263,6 +263,7 @@ function parseRiotId(riotId) {
 const TWITCH_CHANNELS = {
   "koldoabalos#psoe": "Votillas",
   "stellar#aco": "xstellar_",
+  "sevillanaenjoyer#carla": "xstellar_",
   "CAL Destroyersit#EUW": "destr0lol",
 };
 
