@@ -212,6 +212,9 @@ const MSGS = [
   "Calculando gap...",
 ];
 let loadIv;
+let lastComparison = null;
+let shareStatusTimer;
+
 function setLoading(on) {
   document.getElementById("loading").hidden = !on;
   clearInterval(loadIv);
@@ -231,6 +234,276 @@ function showError(msg) {
 }
 function hideError() {
   document.getElementById("error").hidden = true;
+}
+
+function parseRiotId(riotId) {
+  const idx = riotId.indexOf("#");
+  if (idx < 0) return { name: riotId.trim(), tag: "" };
+  return {
+    name: riotId.slice(0, idx).trim(),
+    tag: riotId.slice(idx + 1).trim(),
+  };
+}
+
+function rankLP(r) {
+  return r && typeof r.lp === "number" ? r.lp : 0;
+}
+
+function totalGames(r) {
+  return (r.wins || 0) + (r.losses || 0);
+}
+
+function winRate(r) {
+  const total = totalGames(r);
+  return total ? Math.round((r.wins / total) * 100) : 0;
+}
+
+function buildComparisonUrl() {
+  const url = new URL(location.href);
+  url.search = "";
+  url.searchParams.set("p1", $p1.value.trim());
+  url.searchParams.set("p2", $p2.value.trim());
+  url.searchParams.set("region", region);
+  return url.toString();
+}
+
+function setShareStatus(msg) {
+  const el = document.getElementById("share-status");
+  if (!el) return;
+  clearTimeout(shareStatusTimer);
+  el.textContent = msg;
+  if (msg) {
+    shareStatusTimer = setTimeout(() => {
+      el.textContent = "";
+    }, 3000);
+  }
+}
+
+async function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return;
+    } catch {}
+  }
+
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.left = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand("copy");
+  document.body.removeChild(ta);
+  if (!ok) throw new Error("copy failed");
+}
+
+async function copyShareLink() {
+  if (!lastComparison) return;
+  try {
+    await copyText(lastComparison.shareUrl);
+    setShareStatus("Enlace copiado");
+  } catch {
+    setShareStatus("No se pudo copiar el enlace");
+  }
+}
+
+function roundRectPath(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function fillRoundRect(ctx, x, y, w, h, r, fill) {
+  roundRectPath(ctx, x, y, w, h, r);
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+function strokeRoundRect(ctx, x, y, w, h, r, stroke, width = 2) {
+  roundRectPath(ctx, x, y, w, h, r);
+  ctx.strokeStyle = stroke;
+  ctx.lineWidth = width;
+  ctx.stroke();
+}
+
+function drawFittedText(ctx, text, x, y, maxWidth, maxSize, minSize, weight) {
+  let size = maxSize;
+  const fontWeight = weight || 700;
+  do {
+    ctx.font = `${fontWeight} ${size}px Inter, Arial, sans-serif`;
+    if (ctx.measureText(text).width <= maxWidth || size <= minSize) break;
+    size -= 2;
+  } while (size > minSize);
+  ctx.fillText(text, x, y, maxWidth);
+}
+
+function drawPlayerSharePanel(ctx, player, x, y, w, h) {
+  const tk = tierKey(player.rank);
+  const tc = TIER_COLORS[tk] || TIER_COLORS.UNRANKED;
+  const wr = winRate(player.rank);
+  const total = totalGames(player.rank);
+
+  fillRoundRect(ctx, x, y, w, h, 24, "#16171e");
+  strokeRoundRect(ctx, x, y, w, h, 24, "#2a2b35", 2);
+
+  fillRoundRect(ctx, x + 34, y + 36, 72, 72, 18, tc.bg);
+  ctx.fillStyle = tc.text;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  drawFittedText(ctx, player.name.slice(0, 1).toUpperCase() || "?", x + 70, y + 73, 52, 42, 24, 900);
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "#e8e8e8";
+  drawFittedText(ctx, player.name, x + 128, y + 66, w - 162, 34, 22, 800);
+  ctx.fillStyle = "#6b6d7b";
+  drawFittedText(ctx, `#${player.tag || "-"}`, x + 128, y + 96, w - 162, 22, 18, 600);
+
+  fillRoundRect(ctx, x + 34, y + 132, w - 68, 56, 14, tc.bg);
+  ctx.fillStyle = tc.text;
+  ctx.textAlign = "center";
+  drawFittedText(ctx, fmtRank(player.rank), x + w / 2, y + 168, w - 94, 24, 16, 900);
+
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#6b6d7b";
+  ctx.font = "700 18px Inter, Arial, sans-serif";
+  ctx.fillText("LP", x + 42, y + 236);
+  ctx.fillText("WR", x + w / 2 - 20, y + 236);
+  ctx.fillText("W / L", x + w - 146, y + 236);
+
+  ctx.fillStyle = "#e8e8e8";
+  ctx.font = "900 34px Inter, Arial, sans-serif";
+  ctx.fillText(String(rankLP(player.rank)), x + 42, y + 278);
+  ctx.fillText(`${wr}%`, x + w / 2 - 20, y + 278);
+  drawFittedText(ctx, `${player.rank.wins || 0} / ${player.rank.losses || 0}`, x + w - 146, y + 278, 110, 34, 22, 900);
+
+  ctx.fillStyle = "#3a3b47";
+  ctx.font = "700 16px Inter, Arial, sans-serif";
+  ctx.fillText(`${total} partidas`, x + 42, y + h - 38);
+}
+
+function makeShareCanvas(data) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1200;
+  canvas.height = 675;
+  const ctx = canvas.getContext("2d");
+
+  ctx.fillStyle = "#0d0e13";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const grd = ctx.createLinearGradient(0, 0, canvas.width, 0);
+  grd.addColorStop(0, "#d946ef");
+  grd.addColorStop(0.5, "#f0b232");
+  grd.addColorStop(1, "#49b26c");
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, canvas.width, 10);
+
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#f0b232";
+  ctx.font = "900 46px Inter, Arial, sans-serif";
+  ctx.fillText("LP GAP", 72, 88);
+  ctx.fillStyle = "#6b6d7b";
+  ctx.font = "700 22px Inter, Arial, sans-serif";
+  ctx.fillText(`${data.regionLabel} SOLOQ COMPARISON`, 72, 124);
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#3a3b47";
+  ctx.font = "700 22px Inter, Arial, sans-serif";
+  ctx.fillText("lpgap", canvas.width - 72, 88);
+
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#e8e8e8";
+  ctx.font = "800 24px Inter, Arial, sans-serif";
+  ctx.fillText("LP GAP", canvas.width / 2, 176);
+  ctx.fillStyle = "#f0b232";
+  ctx.font = "900 92px Inter, Arial, sans-serif";
+  ctx.fillText(`${data.diff > 0 ? "+" : ""}${data.diff}`, canvas.width / 2, 276);
+  ctx.fillStyle = "#6b6d7b";
+  ctx.font = "700 24px Inter, Arial, sans-serif";
+  drawFittedText(ctx, data.leaderText, canvas.width / 2, 318, 900, 24, 16, 700);
+
+  drawPlayerSharePanel(ctx, data.players[0], 72, 360, 500, 250);
+  drawPlayerSharePanel(ctx, data.players[1], 628, 360, 500, 250);
+
+  return canvas;
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("canvas blob failed"));
+    }, "image/png");
+  });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function shareFilename(data) {
+  const names = data.players
+    .map((p) => p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"))
+    .map((p) => p.replace(/^-+|-+$/g, "") || "player")
+    .join("-vs-");
+  return `lp-gap-${names}.png`;
+}
+
+async function copyShareCard() {
+  if (!lastComparison) return;
+  const btn = document.querySelector('[data-share="card"]');
+  if (btn) btn.disabled = true;
+  setShareStatus("Generando tarjeta...");
+
+  try {
+    const canvas = makeShareCanvas(lastComparison);
+    const blob = await canvasToBlob(canvas);
+
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob }),
+      ]);
+      setShareStatus("Tarjeta copiada");
+    } else {
+      downloadBlob(blob, shareFilename(lastComparison));
+      setShareStatus("PNG descargado");
+    }
+  } catch {
+    try {
+      const canvas = makeShareCanvas(lastComparison);
+      const blob = await canvasToBlob(canvas);
+      downloadBlob(blob, shareFilename(lastComparison));
+      setShareStatus("PNG descargado");
+    } catch {
+      setShareStatus("No se pudo generar la tarjeta");
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function bindShareActions(box) {
+  box
+    .querySelector('[data-share="link"]')
+    ?.addEventListener("click", copyShareLink);
+  box
+    .querySelector('[data-share="card"]')
+    ?.addEventListener("click", copyShareCard);
 }
 
 function buildPlayerCard(riotId, r) {
@@ -342,14 +615,29 @@ async function compare() {
       fetchRank(id2[0], id2[1], region),
     ]);
 
+    const p1Id = $p1.value.trim();
+    const p2Id = $p2.value.trim();
+    const p1Info = parseRiotId(p1Id);
+    const p2Info = parseRiotId(p2Id);
     const lp1 = toLP(r1.tier, r1.division, r1.lp);
     const lp2 = toLP(r2.tier, r2.division, r2.lp);
     const diff = Math.abs(lp1 - lp2);
     const leader = lp1 >= lp2 ? 1 : 2;
-    const leaderName =
-      leader === 1
-        ? esc($p1.value.trim().split("#")[0])
-        : esc($p2.value.trim().split("#")[0]);
+    const leaderName = leader === 1 ? p1Info.name : p2Info.name;
+    const leaderText =
+      diff === 0 ? "Mismo rango" : `${leaderName} va por delante`;
+
+    lastComparison = {
+      diff,
+      leader,
+      leaderText,
+      regionLabel: region.toUpperCase(),
+      shareUrl: buildComparisonUrl(),
+      players: [
+        { ...p1Info, rank: r1, lp: lp1 },
+        { ...p2Info, rank: r2, lp: lp2 },
+      ],
+    };
 
     const box = document.getElementById("results");
     box.innerHTML = `
@@ -357,15 +645,21 @@ async function compare() {
   <div class="label">LP Gap</div>
   <div class="value">0</div>
   <div class="leader">${
-    diff === 0
-      ? "Mismo rango"
-      : `<strong>${leaderName}</strong> va por delante`
+    diff === 0 ? "Mismo rango" : `<strong>${esc(leaderName)}</strong> va por delante`
   }</div>
+  <div class="share-panel">
+    <div class="share-actions">
+      <button type="button" class="share-btn" data-share="link" title="Copia el enlace de esta comparacion">Copiar enlace</button>
+      <button type="button" class="share-btn share-btn-primary" data-share="card" title="Copia una imagen PNG; si el navegador no lo permite, la descarga">Copiar tarjeta</button>
+    </div>
+    <div class="share-status" id="share-status" aria-live="polite"></div>
+  </div>
 </div>
-${buildPlayerCard($p1.value.trim(), r1)}
-${buildPlayerCard($p2.value.trim(), r2)}
+${buildPlayerCard(p1Id, r1)}
+${buildPlayerCard(p2Id, r2)}
     `;
     box.hidden = false;
+    bindShareActions(box);
 
     requestAnimationFrame(() => {
       setTimeout(() => {

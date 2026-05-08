@@ -244,6 +244,61 @@ input:focus {
   color: var(--text);
   font-weight: 700;
 }
+.share-panel {
+  margin-top: 22px;
+}
+.share-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.share-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    color 0.15s,
+    transform 0.15s,
+    opacity 0.15s;
+}
+.share-btn:hover:not(:disabled) {
+  border-color: var(--gold);
+  color: var(--gold);
+  transform: translateY(-1px);
+}
+.share-btn:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+.share-btn-primary {
+  background: var(--gold);
+  color: #000;
+  border-color: var(--gold);
+}
+.share-btn-primary:hover:not(:disabled) {
+  color: #000;
+  filter: brightness(1.08);
+}
+.share-status {
+  min-height: 16px;
+  margin-top: 10px;
+  color: var(--dim);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
 
 /* Player card */
 .player-card {
