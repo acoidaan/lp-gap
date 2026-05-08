@@ -962,6 +962,12 @@ input:focus {
   text-align: center;
   flex-shrink: 0;
 }
+.ladder-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
 .ladder-avatar {
   width: 36px;
   height: 36px;
@@ -969,6 +975,65 @@ input:focus {
   overflow: hidden;
   border: 2px solid var(--border);
   flex-shrink: 0;
+}
+.live-pip {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--red);
+  border: 2px solid var(--card);
+  box-shadow: 0 0 0 0 rgba(232, 93, 117, 0.6);
+  animation: live-pulse 1.6s ease-out infinite;
+  z-index: 2;
+}
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(232, 93, 117, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(232, 93, 117, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(232, 93, 117, 0);
+  }
+}
+.ladder-row.is-in-game .ladder-avatar {
+  border-color: var(--red);
+}
+.ladder-live-champ {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.ladder-live-champ img {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--red);
+  display: block;
+}
+.stream-link-ladder.is-live {
+  color: #fff;
+  background: #d32f4f;
+  border-color: #ff4566;
+  animation: live-glow 1.8s ease-in-out infinite;
+}
+.stream-link-ladder.is-live:hover {
+  background: #ff4566;
+  border-color: #ff4566;
+}
+@keyframes live-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 69, 102, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(255, 69, 102, 0);
+  }
 }
 .ladder-avatar img {
   width: 100%;

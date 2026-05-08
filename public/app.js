@@ -127,6 +127,8 @@ function setActiveView(view) {
   });
   document.body.classList.toggle("view-challenge", view === "challenge");
   if (view === "challenge") refreshChallenge();
+  else if (typeof refreshLiveStatus === "function" && lastLadderPlayers.length)
+    refreshLiveStatus();
 }
 
 function toLP(tier, div, lp) {
@@ -1327,13 +1329,16 @@ function renderLadder(players, cutoffs) {
         sparkBlockHtml = `<div class="spark-wrap">${sparkSvg}${tipHtml}</div>`;
       }
 
-      return `<div class="ladder-row">
+      return `<div class="ladder-row" data-riot-id="${esc(p.riotId)}">
 <span class="ladder-pos" style="color:${posColors[i] || "var(--dim)"}">#${i + 1}</span>
-<div class="ladder-avatar" style="border-color:${tc.bg}">
-  <img src="${iconUrl(p.iconId || 29)}" alt="${esc(name)}" loading="lazy" />
+<div class="ladder-avatar-wrap">
+  <div class="ladder-avatar" style="border-color:${tc.bg}">
+    <img src="${iconUrl(p.iconId || 29)}" alt="${esc(name)}" loading="lazy" />
+  </div>
+  <span class="live-pip" hidden></span>
 </div>
 <div class="ladder-info">
-  <div class="ladder-name"><a href="${opggUrl}" target="_blank" rel="noopener">${esc(name)}</a>${twitchLink}</div>
+  <div class="ladder-name"><a href="${opggUrl}" target="_blank" rel="noopener">${esc(name)}</a>${twitchLink}<span class="ladder-live-champ" hidden></span></div>
   <div class="ladder-rank-str">
     <span class="ladder-tier-dot" style="background:${tc.bg}"></span>${ladderRankStr(p)}
   </div>
@@ -1382,6 +1387,7 @@ async function refreshLadder(force = false) {
       renderLadder(cached.players, cached.cutoffs);
       ladderLastUpdated = cached.timestamp;
       updateLadderTime();
+      startLivePolling(cached.players);
       return;
     }
   }
@@ -1418,9 +1424,184 @@ async function refreshLadder(force = false) {
   ladderLastUpdated = Date.now();
   updateLadderTime();
 
+  startLivePolling(players);
+
   btn.classList.remove("spinning");
   btn.disabled = false;
   ladderRefreshing = false;
+}
+
+// === Live status (in-game + Twitch) ===
+
+const LIVE_POLL_MS = 60_000;
+const liveStatus = { inGame: {}, twitch: {} };
+let livePollTimer = null;
+let lastLadderPlayers = [];
+let championById = null;
+let championDataPromise = null;
+
+function loadChampionData() {
+  if (championById) return Promise.resolve(championById);
+  if (championDataPromise) return championDataPromise;
+  championDataPromise = fetch(
+    `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/en_US/champion.json`,
+  )
+    .then((r) => r.json())
+    .then((data) => {
+      const map = {};
+      for (const champ of Object.values(data.data || {})) {
+        map[Number(champ.key)] = champ;
+      }
+      championById = map;
+      return map;
+    })
+    .catch(() => {
+      championById = {};
+      return championById;
+    });
+  return championDataPromise;
+}
+
+function championIcon(championId) {
+  const champ = championById && championById[championId];
+  if (!champ) return null;
+  return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${champ.id}.png`;
+}
+
+async function fetchLiveForPlayer(p) {
+  if (!p.puuid) return null;
+  try {
+    const res = await fetch(
+      `/api/live?puuid=${encodeURIComponent(p.puuid)}&region=${LADDER_REGION}`,
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTwitchLive() {
+  const channels = LADDER_PLAYERS.map((rid) => twitchChannelForRiotId(rid))
+    .filter(Boolean)
+    .map((c) => c.toLowerCase());
+  if (channels.length === 0) return {};
+  try {
+    const res = await fetch(
+      `/api/twitch-live?channels=${encodeURIComponent(channels.join(","))}`,
+    );
+    if (!res.ok) return {};
+    const data = await res.json();
+    return data.streams || {};
+  } catch {
+    return {};
+  }
+}
+
+async function refreshLiveStatus() {
+  if (!lastLadderPlayers.length) return;
+
+  const [twitchStreams, ...inGameResults] = await Promise.all([
+    fetchTwitchLive(),
+    ...lastLadderPlayers.map(fetchLiveForPlayer),
+  ]);
+
+  liveStatus.twitch = twitchStreams;
+  const newInGame = {};
+  lastLadderPlayers.forEach((p, i) => {
+    const r = inGameResults[i];
+    if (r && r.inGame) newInGame[p.riotId] = r;
+  });
+  liveStatus.inGame = newInGame;
+
+  await loadChampionData();
+  applyLiveIndicators();
+}
+
+function fmtGameLength(seconds) {
+  const s = Math.max(0, Math.floor(seconds || 0));
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s / 60)}min`;
+}
+
+function applyLiveIndicators() {
+  document.querySelectorAll(".ladder-row[data-riot-id]").forEach((row) => {
+    const riotId = row.dataset.riotId;
+
+    // In-game
+    const live = liveStatus.inGame[riotId];
+    const pip = row.querySelector(".live-pip");
+    const champSlot = row.querySelector(".ladder-live-champ");
+    if (live) {
+      const champ = championById && championById[live.championId];
+      const icon = championIcon(live.championId);
+      const champName = champ ? champ.name : "Champion";
+      const length = fmtGameLength(live.gameLength);
+      const tooltip = `🔴 EN PARTIDA · ${champName}${length ? " · " + length : ""}`;
+      if (pip) {
+        pip.hidden = false;
+        pip.title = tooltip;
+      }
+      if (champSlot) {
+        champSlot.hidden = false;
+        champSlot.title = tooltip;
+        champSlot.innerHTML = icon
+          ? `<img src="${icon}" alt="${esc(champName)}" />`
+          : "";
+      }
+      row.classList.add("is-in-game");
+    } else {
+      if (pip) {
+        pip.hidden = true;
+        pip.removeAttribute("title");
+      }
+      if (champSlot) {
+        champSlot.hidden = true;
+        champSlot.innerHTML = "";
+      }
+      row.classList.remove("is-in-game");
+    }
+
+    // Twitch live
+    const twitchLink = row.querySelector(
+      ".stream-link-ladder[data-twitch-channel]",
+    );
+    if (twitchLink) {
+      const channel = twitchLink.dataset.twitchChannel;
+      const stream = liveStatus.twitch[channel];
+      if (stream) {
+        twitchLink.classList.add("is-live");
+        twitchLink.textContent = "LIVE";
+        twitchLink.title = `🔴 ${stream.userName || channel} · ${stream.viewerCount} viewers · ${stream.gameName || ""}`.trim();
+      } else {
+        twitchLink.classList.remove("is-live");
+        twitchLink.textContent = "TW";
+        twitchLink.title = `Twitch: ${channel}`;
+      }
+    }
+  });
+}
+
+function isLadderVisible() {
+  return !document.body.classList.contains("view-challenge");
+}
+
+function startLivePolling(players) {
+  lastLadderPlayers = players || [];
+  stopLivePolling();
+  if (!isLadderVisible()) return;
+  refreshLiveStatus();
+  livePollTimer = setInterval(() => {
+    if (!isLadderVisible()) return;
+    refreshLiveStatus();
+  }, LIVE_POLL_MS);
+}
+
+function stopLivePolling() {
+  if (livePollTimer) {
+    clearInterval(livePollTimer);
+    livePollTimer = null;
+  }
 }
 
 document.getElementById("refresh-btn").onclick = () => refreshLadder(true);
