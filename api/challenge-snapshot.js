@@ -8,7 +8,78 @@ const {
   isDatabaseConfigured,
   saveSnapshot,
 } = require("./_challenge");
-const { postWebhook, isDiscordConfigured } = require("./_discord");
+const {
+  postWebhook,
+  isDiscordConfigured,
+  isBotConfigured,
+  createThread,
+  renameChannel,
+} = require("./_discord");
+
+// Misma constante que el frontend en public/app.js. Hora de Canarias.
+const CHALLENGE_START_MS = new Date("2026-08-01T00:00:00+01:00").getTime();
+const CHALLENGE_END_MS = new Date("2026-09-01T00:00:00+01:00").getTime();
+const CHALLENGE_TOTAL_DAYS = 31;
+
+function challengePhase() {
+  const now = Date.now();
+  if (now < CHALLENGE_START_MS) {
+    const days = Math.max(1, Math.ceil((CHALLENGE_START_MS - now) / 86400000));
+    return { state: "upcoming", daysUntil: days };
+  }
+  if (now < CHALLENGE_END_MS) {
+    const day = Math.floor((now - CHALLENGE_START_MS) / 86400000) + 1;
+    return { state: "active", day };
+  }
+  return { state: "ended" };
+}
+
+function shortName(name) {
+  if (!name) return "?";
+  if (/^Sevillana/i.test(name)) return "Sevi";
+  if (/^CAL/i.test(name)) return "CAL";
+  return name.slice(0, 8).trim();
+}
+
+function buildChannelName(p1, p2) {
+  const phase = challengePhase();
+  if (phase.state === "upcoming") {
+    return `🥊 Reto en ${phase.daysUntil}d`;
+  }
+  if (phase.state === "ended") {
+    if (!p1 || !p2) return "🏆 Reto finalizado";
+    const winner = p1.totalLp >= p2.totalLp ? p1 : p2;
+    return `🏆 Ganador: ${shortName(winner.name)}`;
+  }
+  if (!p1 || !p2) return `🥊 Día ${phase.day}/${CHALLENGE_TOTAL_DAYS}`;
+  const diff = Math.abs(p1.totalLp - p2.totalLp);
+  if (diff === 0) return `🥊 Empate · D${phase.day}/${CHALLENGE_TOTAL_DAYS}`;
+  const leader = p1.totalLp >= p2.totalLp ? p1 : p2;
+  return `🥊 ${shortName(leader.name)} +${diff} · D${phase.day}/${CHALLENGE_TOTAL_DAYS}`;
+}
+
+function buildThreadName() {
+  const phase = challengePhase();
+  if (phase.state === "active") {
+    return `📝 Día ${phase.day}/${CHALLENGE_TOTAL_DAYS} · Discusión`;
+  }
+  if (phase.state === "upcoming") return "📝 Pre-reto · Discusión";
+  return "📝 Reto finalizado · Discusión";
+}
+
+function buildDailyPoll() {
+  return {
+    poll: {
+      question: { text: "¿Quién subirá más LP hoy?" },
+      answers: [
+        { poll_media: { text: "SevillanaEnjoyer", emoji: { name: "🥇" } } },
+        { poll_media: { text: "CAL Destroyersit", emoji: { name: "🥈" } } },
+      ],
+      duration: 24,
+      allow_multiselect: false,
+    },
+  };
+}
 
 const TIER_ORDER = [
   "Iron",
@@ -204,10 +275,60 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 5. Discord
+    // 5. Discord — recap (con wait para tener message_id), thread, poll, rename
     let discordResult = { skipped: true };
+    let threadResult = { skipped: true };
+    let pollResult = { skipped: true };
+    let renameResult = { skipped: true };
+
     if (isDiscordConfigured()) {
-      discordResult = await postWebhook({ embeds: embeds.slice(0, 10) });
+      discordResult = await postWebhook(
+        { embeds: embeds.slice(0, 10) },
+        { wait: true },
+      );
+
+      // Hilo de discusión sobre el recap (necesita bot user)
+      if (
+        discordResult.ok &&
+        discordResult.message &&
+        isBotConfigured()
+      ) {
+        try {
+          threadResult = await createThread(
+            discordResult.message.channel_id,
+            discordResult.message.id,
+            buildThreadName(),
+          );
+        } catch (e) {
+          console.warn("Discord thread skip:", e.message);
+          threadResult = { error: e.message };
+        }
+      }
+
+      // Poll diario solo durante el reto activo
+      const phase = challengePhase();
+      if (phase.state === "active") {
+        try {
+          pollResult = await postWebhook(buildDailyPoll());
+        } catch (e) {
+          console.warn("Discord poll skip:", e.message);
+          pollResult = { error: e.message };
+        }
+      }
+    }
+
+    // Rename voice channel (independiente del webhook, solo necesita bot)
+    const voiceChannelId = process.env.DISCORD_VOICE_CHANNEL_ID;
+    if (voiceChannelId && isBotConfigured()) {
+      try {
+        renameResult = await renameChannel(
+          voiceChannelId,
+          buildChannelName(p1, p2),
+        );
+      } catch (e) {
+        console.warn("Discord rename skip:", e.message);
+        renameResult = { error: e.message };
+      }
     }
 
     res.json({
@@ -217,7 +338,12 @@ module.exports = async (req, res) => {
       players,
       promotionCount: promotions.length,
       promotions,
-      discord: discordResult,
+      discord: {
+        recap: discordResult,
+        thread: threadResult,
+        poll: pollResult,
+        voiceRename: renameResult,
+      },
     });
   } catch (e) {
     console.error("CHALLENGE SNAPSHOT ERROR:", e.message);
