@@ -42,6 +42,8 @@ let ddragonVersion = "15.7.1";
 const $p1 = document.getElementById("p1");
 const $p2 = document.getElementById("p2");
 const $btn = document.getElementById("btn");
+const $viewTabs = document.querySelectorAll("[data-view]");
+const $views = document.querySelectorAll(".app-view");
 
 fetch("https://ddragon.leagueoflegends.com/api/versions.json")
   .then((r) => r.json())
@@ -112,6 +114,19 @@ $p2.addEventListener("input", check);
   }),
 );
 $btn.addEventListener("click", compare);
+$viewTabs.forEach((tab) => {
+  tab.addEventListener("click", () => setActiveView(tab.dataset.view));
+});
+
+function setActiveView(view) {
+  $viewTabs.forEach((tab) => {
+    tab.className = tab.dataset.view === view ? "active" : "";
+  });
+  $views.forEach((section) => {
+    section.hidden = section.id !== `${view}-view`;
+  });
+  if (view === "challenge") refreshChallenge();
+}
 
 function toLP(tier, div, lp) {
   const i = TIERS.indexOf((tier || "").toUpperCase());
@@ -749,6 +764,228 @@ ${buildPlayerCard(p2Id, r2)}
   }
   setLoading(false);
 }
+
+// Challenge
+
+const CHALLENGE_PLAYERS = [
+  "SevillanaEnjoyer#CARLA",
+  "CAL Destroyersit#EUW",
+];
+const CHALLENGE_REGION = "euw";
+const CHALLENGE_HISTORY_KEY = "lpgap_challenge_history_v1";
+const CHALLENGE_HISTORY_MAX = 90;
+let challengeRefreshing = false;
+
+function loadChallengeHistory() {
+  try {
+    const raw = localStorage.getItem(CHALLENGE_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveChallengeSnapshot(players) {
+  try {
+    const history = loadChallengeHistory();
+    const lps = {};
+    players.forEach((p) => {
+      if (!p.error) lps[p.riotId] = p.totalLp;
+    });
+    const last = history[history.length - 1];
+    const snapshot = { ts: Date.now(), lps };
+
+    if (last && snapshot.ts - last.ts < 5 * 60 * 1000) {
+      history[history.length - 1] = snapshot;
+    } else {
+      history.push(snapshot);
+    }
+
+    while (history.length > CHALLENGE_HISTORY_MAX) history.shift();
+    localStorage.setItem(CHALLENGE_HISTORY_KEY, JSON.stringify(history));
+    return history;
+  } catch {
+    return [];
+  }
+}
+
+function challengePlayerCard(player, leader) {
+  const info = parseRiotId(player.riotId);
+  const tk = tierKey(player);
+  const tc = TIER_COLORS[tk] || TIER_COLORS.UNRANKED;
+  const total = totalGames(player);
+  const wr = winRate(player);
+  const rankText = fmtRank(player);
+  const opggUrl = `https://www.op.gg/summoners/${CHALLENGE_REGION}/${encodeURIComponent(info.name)}-${encodeURIComponent(info.tag || "")}`;
+
+  return `<div class="challenge-player ${leader ? "leading" : ""}">
+    <div class="challenge-player-main">
+      <div class="challenge-avatar" style="border-color:${tc.bg}">
+        <img src="${iconUrl(player.iconId || 29)}" alt="${esc(info.name)}" />
+      </div>
+      <div class="challenge-player-copy">
+        <a href="${opggUrl}" target="_blank" rel="noopener">${esc(info.name)}</a>
+        <span>#${esc(info.tag || "")}</span>
+      </div>
+    </div>
+    <div class="challenge-rank" style="background:${tc.bg};color:${tc.text}">
+      ${rankText}
+    </div>
+    <div class="challenge-player-stats">
+      <div><strong>${player.lp || 0}</strong><span>LP</span></div>
+      <div><strong>${wr}%</strong><span>WR</span></div>
+      <div><strong>${player.wins || 0}/${player.losses || 0}</strong><span>W/L</span></div>
+      <div><strong>${total}</strong><span>Games</span></div>
+    </div>
+  </div>`;
+}
+
+function challengeGraphSvg(history, p1Id, p2Id) {
+  const points = history.filter(
+    (h) => typeof h.lps[p1Id] === "number" && typeof h.lps[p2Id] === "number",
+  );
+
+  if (points.length < 2) {
+    return `<div class="challenge-empty">Actualiza varias veces para empezar la grafica.</div>`;
+  }
+
+  const width = 520;
+  const height = 190;
+  const pad = 18;
+  const values = points.flatMap((h) => [h.lps[p1Id], h.lps[p2Id]]);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(1, max - min);
+  const xFor = (i) => pad + (i / (points.length - 1)) * (width - pad * 2);
+  const yFor = (v) => height - pad - ((v - min) / range) * (height - pad * 2);
+  const lineFor = (id) =>
+    points
+      .map((h, i) => `${xFor(i).toFixed(1)},${yFor(h.lps[id]).toFixed(1)}`)
+      .join(" ");
+
+  return `<svg class="challenge-graph" viewBox="0 0 ${width} ${height}" role="img" aria-label="Evolucion de LP">
+    <line x1="${pad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" />
+    <line x1="${pad}" y1="${pad}" x2="${pad}" y2="${height - pad}" />
+    <polyline class="line-a" points="${lineFor(p1Id)}" />
+    <polyline class="line-b" points="${lineFor(p2Id)}" />
+  </svg>`;
+}
+
+function renderChallenge(players, history) {
+  const body = document.getElementById("challenge-body");
+  if (!body) return;
+
+  const [p1, p2] = players;
+  if (p1.error || p2.error) {
+    body.innerHTML = `<div class="challenge-empty">No se pudo cargar el challenge ahora mismo.</div>`;
+    return;
+  }
+
+  const diff = Math.abs(p1.totalLp - p2.totalLp);
+  const leader = p1.totalLp >= p2.totalLp ? p1 : p2;
+  const trailing = leader === p1 ? p2 : p1;
+  const leaderName = parseRiotId(leader.riotId).name;
+  const trailingName = parseRiotId(trailing.riotId).name;
+  const maxLp = Math.max(p1.totalLp, p2.totalLp, 1);
+  const p1Pct = Math.max(8, Math.round((p1.totalLp / maxLp) * 100));
+  const p2Pct = Math.max(8, Math.round((p2.totalLp / maxLp) * 100));
+  const verdict =
+    diff === 0
+      ? "Empate absoluto"
+      : `${leaderName} lidera por ${diff} LP sobre ${trailingName}`;
+
+  body.innerHTML = `
+    <div class="challenge-score">
+      <div class="challenge-score-label">Diferencia actual</div>
+      <div class="challenge-score-value">${diff}</div>
+      <div class="challenge-score-copy">${esc(verdict)}</div>
+    </div>
+
+    <div class="challenge-players">
+      ${challengePlayerCard(p1, leader === p1)}
+      ${challengePlayerCard(p2, leader === p2)}
+    </div>
+
+    <div class="challenge-race">
+      <div class="challenge-race-row">
+        <span>${esc(parseRiotId(p1.riotId).name)}</span>
+        <div class="challenge-race-track">
+          <div style="width:${p1Pct}%"></div>
+        </div>
+        <strong>${p1.totalLp} LP</strong>
+      </div>
+      <div class="challenge-race-row">
+        <span>${esc(parseRiotId(p2.riotId).name)}</span>
+        <div class="challenge-race-track">
+          <div style="width:${p2Pct}%"></div>
+        </div>
+        <strong>${p2.totalLp} LP</strong>
+      </div>
+    </div>
+
+    <div class="challenge-chart-card">
+      <div class="challenge-chart-head">
+        <span>Evolucion local</span>
+        <strong>${history.length} snapshots</strong>
+      </div>
+      ${challengeGraphSvg(history, p1.riotId, p2.riotId)}
+      <div class="challenge-legend">
+        <span><i class="legend-a"></i>SevillanaEnjoyer</span>
+        <span><i class="legend-b"></i>CAL Destroyersit</span>
+      </div>
+    </div>
+  `;
+}
+
+async function refreshChallenge(force = false) {
+  if (challengeRefreshing) return;
+  const view = document.getElementById("challenge-view");
+  if (!view || view.hidden) return;
+
+  const body = document.getElementById("challenge-body");
+  const btn = document.getElementById("challenge-refresh");
+  challengeRefreshing = true;
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("spinning");
+  }
+  if (body && force) {
+    body.innerHTML =
+      '<div class="ladder-skeleton"></div><div class="ladder-skeleton"></div>';
+  }
+
+  try {
+    const players = await Promise.all(
+      CHALLENGE_PLAYERS.map(async (riotId) => {
+        const { name, tag } = parseRiotId(riotId);
+        try {
+          const rank = await fetchRank(name, tag, CHALLENGE_REGION);
+          return {
+            riotId,
+            ...rank,
+            totalLp: toLP(rank.tier, rank.division, rank.lp),
+          };
+        } catch (e) {
+          return { riotId, error: e.message || "Error" };
+        }
+      }),
+    );
+    const history = players.some((p) => p.error)
+      ? loadChallengeHistory()
+      : saveChallengeSnapshot(players);
+    renderChallenge(players, history);
+  } finally {
+    challengeRefreshing = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove("spinning");
+    }
+  }
+}
+
+document.getElementById("challenge-refresh")?.addEventListener("click", () =>
+  refreshChallenge(true),
+);
 
 // Ladder
 

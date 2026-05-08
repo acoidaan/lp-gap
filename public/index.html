@@ -24,38 +24,69 @@
           <div class="sub">League Points Comparator</div>
         </div>
 
-        <div class="form">
-          <div class="field">
-            <label>Jugador 1</label>
-            <input
-              id="p1"
-              placeholder="Nombre#Tag"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
-          <div class="field">
-            <label>Jugador 2</label>
-            <input
-              id="p2"
-              placeholder="Nombre#Tag"
-              autocomplete="off"
-              spellcheck="false"
-            />
-          </div>
-          <div class="field">
-            <label>Regi&oacute;n</label>
-            <div class="regions" id="regions"></div>
-          </div>
-          <button class="compare-btn" id="btn" disabled>Comparar</button>
-        </div>
+        <nav class="view-tabs" aria-label="Secciones">
+          <button class="active" type="button" data-view="compare">
+            Comparar
+          </button>
+          <button type="button" data-view="challenge">SoloQ Challenge</button>
+        </nav>
 
-        <div id="error" class="error" hidden></div>
-        <div id="loading" class="loading" hidden>
-          <div class="spinner"></div>
-          <span id="load-msg">Buscando invocadores...</span>
-        </div>
-        <div id="results" class="results" hidden></div>
+        <section class="app-view" id="compare-view">
+          <div class="form">
+            <div class="field">
+              <label>Jugador 1</label>
+              <input
+                id="p1"
+                placeholder="Nombre#Tag"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div class="field">
+              <label>Jugador 2</label>
+              <input
+                id="p2"
+                placeholder="Nombre#Tag"
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+            <div class="field">
+              <label>Regi&oacute;n</label>
+              <div class="regions" id="regions"></div>
+            </div>
+            <button class="compare-btn" id="btn" disabled>Comparar</button>
+          </div>
+
+          <div id="error" class="error" hidden></div>
+          <div id="loading" class="loading" hidden>
+            <div class="spinner"></div>
+            <span id="load-msg">Buscando invocadores...</span>
+          </div>
+          <div id="results" class="results" hidden></div>
+        </section>
+
+        <section class="app-view challenge-view" id="challenge-view" hidden>
+          <div class="challenge-card">
+            <div class="challenge-head">
+              <div>
+                <div class="challenge-kicker">SoloQ Challenge</div>
+                <h2>SevillanaEnjoyer vs CAL Destroyersit</h2>
+              </div>
+              <button class="refresh-btn challenge-refresh" id="challenge-refresh" title="Actualizar">
+                &#x21bb;
+              </button>
+            </div>
+            <div class="challenge-meta">
+              <span>EUW SoloQ</span>
+              <span>Seguimiento local</span>
+            </div>
+            <div id="challenge-body">
+              <div class="ladder-skeleton"></div>
+              <div class="ladder-skeleton"></div>
+            </div>
+          </div>
+        </section>
       </div>
 
       <!-- Sidebar ladder -->
