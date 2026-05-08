@@ -268,7 +268,7 @@ const TWITCH_CHANNELS = {
   "stellar#aco": "xstellar_",
   "sevillanaenjoyer#carla": "xstellar_",
   "cal destroyersit#euw": "destr0lol",
-  "elmillor11#gordo": "elmiillor",
+  "elmiillor11#gordo": "elmiillor",
 };
 
 function twitchChannelForRiotId(riotId) {
