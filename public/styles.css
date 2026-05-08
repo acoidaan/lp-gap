@@ -40,7 +40,7 @@ body {
   display: flex;
   gap: 24px;
   width: 100%;
-  max-width: 940px;
+  max-width: 980px;
   align-items: flex-start;
 }
 .main-col {
@@ -809,7 +809,7 @@ input:focus {
 
 /* Sidebar */
 .sidebar {
-  width: 320px;
+  width: 360px;
   flex-shrink: 0;
   position: sticky;
   top: 40px;
