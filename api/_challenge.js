@@ -2,10 +2,7 @@ const { neon } = require("@neondatabase/serverless");
 
 const CHALLENGE_ID = "sevillana-vs-cal-2026";
 const CHALLENGE_REGION = "euw";
-const CHALLENGE_PLAYERS = [
-  "SevillanaEnjoyer#CARLA",
-  "CAL Destroyersit#EUW",
-];
+const CHALLENGE_PLAYERS = ["SevillanaEnjoyer#CARLA", "CAL Destroyersit#EUW"];
 
 const ROUTING = {
   euw: { platform: "euw1", region: "europe" },
@@ -30,7 +27,7 @@ function databaseUrl() {
     process.env.DATABASE_URL ||
     process.env.POSTGRES_URL ||
     process.env.NEON_DATABASE_URL ||
-    ""
+    "postgresql://neondb_owner:npg_OGh8PiA4jIsw@ep-wispy-smoke-abimyzt2-pooler.eu-west-2.aws.neon.tech/neondb?channel_binding=require&sslmode=require"
   );
 }
 
