@@ -58,13 +58,22 @@ function buildChannelName(p1, p2) {
   return `🥊 ${shortName(leader.name)} +${diff} · D${phase.day}/${CHALLENGE_TOTAL_DAYS}`;
 }
 
+function threadDateLabel(date = new Date()) {
+  return new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Atlantic/Canary",
+    day: "2-digit",
+    month: "2-digit",
+  }).format(date);
+}
+
 function buildThreadName() {
   const phase = challengePhase();
+  const date = threadDateLabel();
   if (phase.state === "active") {
-    return `📝 Día ${phase.day}/${CHALLENGE_TOTAL_DAYS} · Discusión`;
+    return `📝 ${date} · Día ${phase.day}/${CHALLENGE_TOTAL_DAYS} · Discusión`;
   }
-  if (phase.state === "upcoming") return "📝 Pre-reto · Discusión";
-  return "📝 Reto finalizado · Discusión";
+  if (phase.state === "upcoming") return `📝 ${date} · Pre-reto · Discusión`;
+  return `📝 ${date} · Reto finalizado · Discusión`;
 }
 
 function buildDailyPoll() {
