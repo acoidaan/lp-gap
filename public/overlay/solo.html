@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LP GAP — Solo Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: transparent;
+        font-family: "Inter", system-ui, sans-serif;
+        color: #f5e9c8;
+        overflow: hidden;
+      }
+      body {
+        padding: 6px;
+        display: inline-block;
+      }
+
+      .bar {
+        --accent: #c89b3c;
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 18px;
+        background: linear-gradient(
+          180deg,
+          rgba(14, 17, 27, 0.94),
+          rgba(8, 10, 17, 0.94)
+        );
+        border: 1px solid rgba(200, 155, 60, 0.35);
+        border-radius: 10px;
+        box-shadow:
+          0 6px 22px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(8px);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .bar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--accent),
+          transparent
+        );
+        opacity: 0.85;
+      }
+
+      .avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        border: 2px solid var(--accent);
+        overflow: hidden;
+        flex-shrink: 0;
+        background: #16171e;
+      }
+      .avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .col {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .row1 {
+        display: flex;
+        align-items: baseline;
+        gap: 5px;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        line-height: 1;
+      }
+      .row1 .tag {
+        color: rgba(245, 233, 200, 0.45);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .row2 {
+        margin-top: 4px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+        line-height: 1;
+      }
+
+      .sep {
+        width: 1px;
+        height: 32px;
+        background: linear-gradient(
+          180deg,
+          transparent,
+          rgba(200, 155, 60, 0.4),
+          transparent
+        );
+        flex-shrink: 0;
+      }
+
+      .lp {
+        font-size: 18px;
+        font-weight: 900;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .lp .unit {
+        font-size: 10px;
+        font-weight: 700;
+        opacity: 0.6;
+        margin-left: 3px;
+        letter-spacing: 0.12em;
+      }
+
+      .delta {
+        margin-top: 5px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+      }
+      .delta.up {
+        color: #6ce8a3;
+      }
+      .delta.down {
+        color: #ff8197;
+      }
+      .delta.flat {
+        color: rgba(245, 233, 200, 0.45);
+      }
+
+      .wr {
+        display: flex;
+        flex-direction: column;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+      }
+      .wr .pct {
+        font-size: 16px;
+        font-weight: 900;
+        color: #f5e9c8;
+        letter-spacing: 0.02em;
+      }
+      .wr .wl {
+        margin-top: 5px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: rgba(245, 233, 200, 0.55);
+      }
+      .wr .w {
+        color: #6ce8a3;
+      }
+      .wr .l {
+        color: #ff8197;
+      }
+
+      /* Tier accents */
+      .bar[data-tier="iron"] {
+        --accent: #b8b6b0;
+      }
+      .bar[data-tier="bronze"] {
+        --accent: #cd7f32;
+      }
+      .bar[data-tier="silver"] {
+        --accent: #c0c4c8;
+      }
+      .bar[data-tier="gold"] {
+        --accent: #f0b232;
+      }
+      .bar[data-tier="platinum"] {
+        --accent: #47c9af;
+      }
+      .bar[data-tier="emerald"] {
+        --accent: #62d68a;
+      }
+      .bar[data-tier="diamond"] {
+        --accent: #b9f2ff;
+      }
+      .bar[data-tier="master"] {
+        --accent: #d177ff;
+      }
+      .bar[data-tier="grandmaster"] {
+        --accent: #ff8a8a;
+      }
+      .bar[data-tier="challenger"] {
+        --accent: #fae26c;
+      }
+
+      .pulse-update {
+        animation: pulse 0.65s ease-out;
+      }
+      @keyframes pulse {
+        0% {
+          box-shadow:
+            0 6px 22px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 0 0 0 rgba(240, 200, 100, 0.6);
+        }
+        100% {
+          box-shadow:
+            0 6px 22px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 0 0 22px rgba(240, 200, 100, 0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar" id="bar">
+      <div class="avatar"><img id="avatar" alt="" /></div>
+      <div class="col">
+        <div class="row1">
+          <span id="name">…</span><span class="tag" id="tag"></span>
+        </div>
+        <div class="row2" id="rank">cargando…</div>
+      </div>
+      <div class="sep"></div>
+      <div class="col">
+        <div class="lp">
+          <span id="lp">—</span><span class="unit">LP</span>
+        </div>
+        <div class="delta flat" id="delta">· 0 sesión</div>
+      </div>
+      <div class="sep"></div>
+      <div class="wr">
+        <span class="pct" id="wrPct">0%</span>
+        <span class="wl"
+          ><span class="w" id="wlW">0W</span> /
+          <span class="l" id="wlL">0L</span></span
+        >
+      </div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const riot = (params.get("riot") || "").trim();
+      const region = (params.get("region") || "euw").trim();
+      const refreshMs =
+        Math.max(30, parseInt(params.get("refresh") || "60", 10)) * 1000;
+
+      const idx = riot.indexOf("#");
+      const riotName = idx >= 0 ? riot.slice(0, idx).trim() : riot;
+      const riotTag = idx >= 0 ? riot.slice(idx + 1).trim() : "";
+
+      const TIERS = [
+        "IRON",
+        "BRONZE",
+        "SILVER",
+        "GOLD",
+        "PLATINUM",
+        "EMERALD",
+        "DIAMOND",
+        "MASTER",
+        "GRANDMASTER",
+        "CHALLENGER",
+      ];
+      const DIVS = ["IV", "III", "II", "I"];
+
+      let ddragonVersion = "15.7.1";
+      let initialLp = null;
+      let lastLp = null;
+
+      fetch("https://ddragon.leagueoflegends.com/api/versions.json")
+        .then((r) => r.json())
+        .then((v) => {
+          if (v && v[0]) ddragonVersion = v[0];
+        })
+        .catch(() => {});
+
+      function totalLp(tier, division, lp) {
+        const i = TIERS.indexOf((tier || "").toUpperCase());
+        if (i < 0) return 0;
+        if (i >= 7) return 2800 + (lp || 0);
+        const d = DIVS.indexOf((division || "").toUpperCase());
+        return i * 400 + Math.max(d, 0) * 100 + (lp || 0);
+      }
+
+      function rankLabel(r) {
+        if (!r || r.tier === "Unranked") return "UNRANKED";
+        const t = (r.tier || "").toUpperCase();
+        if (TIERS.indexOf(t) >= 7) return t;
+        return `${t} ${r.division || ""}`.trim();
+      }
+
+      function showError(msg) {
+        document.getElementById("rank").textContent = msg;
+      }
+
+      async function tick() {
+        if (!riotName || !riotTag) {
+          document.getElementById("name").textContent = "Falta ?riot=";
+          showError("Configura ?riot=Nombre%23Tag en la URL");
+          return;
+        }
+        try {
+          const res = await fetch(
+            `/api/rank?name=${encodeURIComponent(riotName)}&tag=${encodeURIComponent(riotTag)}&region=${region}`,
+          );
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "error");
+
+          const tierLow = (data.tier || "unranked").toLowerCase();
+          const bar = document.getElementById("bar");
+          bar.dataset.tier = tierLow;
+
+          document.getElementById("name").textContent = riotName;
+          document.getElementById("tag").textContent = "#" + riotTag;
+          document.getElementById("rank").textContent = rankLabel(data);
+          document.getElementById("lp").textContent =
+            data.tier === "Unranked" ? "—" : data.lp;
+
+          const total = (data.wins || 0) + (data.losses || 0);
+          const wrPct = total ? Math.round((data.wins / total) * 100) : 0;
+          document.getElementById("wrPct").textContent = wrPct + "%";
+          document.getElementById("wlW").textContent =
+            (data.wins || 0) + "W";
+          document.getElementById("wlL").textContent =
+            (data.losses || 0) + "L";
+
+          const lp = totalLp(data.tier, data.division, data.lp);
+          if (initialLp === null) initialLp = lp;
+          const sessionDelta = lp - initialLp;
+          const delta = document.getElementById("delta");
+          delta.classList.remove("up", "down", "flat");
+          if (sessionDelta > 0) {
+            delta.textContent = `▲ +${sessionDelta} sesión`;
+            delta.classList.add("up");
+          } else if (sessionDelta < 0) {
+            delta.textContent = `▼ ${sessionDelta} sesión`;
+            delta.classList.add("down");
+          } else {
+            delta.textContent = "· 0 sesión";
+            delta.classList.add("flat");
+          }
+
+          if (lastLp !== null && lp !== lastLp) {
+            bar.classList.remove("pulse-update");
+            void bar.offsetWidth;
+            bar.classList.add("pulse-update");
+          }
+          lastLp = lp;
+
+          const iconId = data.iconId || 29;
+          document.getElementById("avatar").src =
+            `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/profileicon/${iconId}.png`;
+        } catch (e) {
+          showError("Error: " + e.message);
+          console.error("overlay solo:", e);
+        }
+      }
+
+      tick();
+      setInterval(tick, refreshMs);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LP GAP — Challenge Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: transparent;
+        font-family: "Inter", system-ui, sans-serif;
+        color: #f5e9c8;
+        overflow: hidden;
+      }
+      body {
+        padding: 6px;
+        display: inline-block;
+      }
+
+      .bar {
+        position: relative;
+        display: flex;
+        align-items: stretch;
+        gap: 10px;
+        padding: 10px 18px;
+        background: linear-gradient(
+          180deg,
+          rgba(14, 17, 27, 0.94),
+          rgba(8, 10, 17, 0.94)
+        );
+        border: 1px solid rgba(200, 155, 60, 0.35);
+        border-radius: 10px;
+        box-shadow:
+          0 6px 22px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(8px);
+        white-space: nowrap;
+        overflow: hidden;
+        min-height: 64px;
+      }
+      .bar::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(
+          90deg,
+          #d177ff 0%,
+          #c89b3c 50%,
+          #62d68a 100%
+        );
+        opacity: 0.85;
+      }
+
+      .player {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .player.right {
+        flex-direction: row-reverse;
+      }
+
+      .player-info {
+        display: flex;
+        flex-direction: column;
+        line-height: 1;
+      }
+      .player.right .player-info {
+        text-align: right;
+      }
+      .player-name {
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .player-rank {
+        margin-top: 5px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--player-accent, #c89b3c);
+      }
+
+      .player-lp {
+        font-size: 20px;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        color: var(--player-accent, #c89b3c);
+        min-width: 64px;
+        text-align: center;
+      }
+      .player.right .player-lp {
+        text-align: center;
+      }
+      .player-lp .unit {
+        display: block;
+        margin-top: 4px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        opacity: 0.55;
+        color: #f5e9c8;
+      }
+
+      .medal {
+        font-size: 22px;
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .center {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 16px;
+        border-left: 1px solid rgba(200, 155, 60, 0.25);
+        border-right: 1px solid rgba(200, 155, 60, 0.25);
+        min-width: 130px;
+      }
+      .gap-label {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: rgba(245, 233, 200, 0.55);
+      }
+      .gap-value {
+        margin-top: 3px;
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1;
+        font-variant-numeric: tabular-nums;
+        color: #f0b232;
+        text-shadow: 0 0 18px rgba(240, 178, 50, 0.4);
+      }
+      .gap-leader {
+        margin-top: 4px;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(245, 233, 200, 0.65);
+      }
+
+      .player[data-tier="iron"] {
+        --player-accent: #b8b6b0;
+      }
+      .player[data-tier="bronze"] {
+        --player-accent: #cd7f32;
+      }
+      .player[data-tier="silver"] {
+        --player-accent: #c0c4c8;
+      }
+      .player[data-tier="gold"] {
+        --player-accent: #f0b232;
+      }
+      .player[data-tier="platinum"] {
+        --player-accent: #47c9af;
+      }
+      .player[data-tier="emerald"] {
+        --player-accent: #62d68a;
+      }
+      .player[data-tier="diamond"] {
+        --player-accent: #b9f2ff;
+      }
+      .player[data-tier="master"] {
+        --player-accent: #d177ff;
+      }
+      .player[data-tier="grandmaster"] {
+        --player-accent: #ff8a8a;
+      }
+      .player[data-tier="challenger"] {
+        --player-accent: #fae26c;
+      }
+      .player[data-tier="unranked"] {
+        --player-accent: #6b6d7b;
+      }
+
+      .pulse-update {
+        animation: pulse 0.65s ease-out;
+      }
+      @keyframes pulse {
+        0% {
+          box-shadow:
+            0 6px 22px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 0 0 0 rgba(240, 200, 100, 0.6);
+        }
+        100% {
+          box-shadow:
+            0 6px 22px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 0 0 22px rgba(240, 200, 100, 0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bar" id="bar">
+      <div class="player" id="p1" data-tier="">
+        <span class="medal" id="p1-medal">·</span>
+        <div class="player-info">
+          <div class="player-name">SevillanaEnjoyer</div>
+          <div class="player-rank" id="p1-rank">…</div>
+        </div>
+        <div class="player-lp"><span id="p1-lp">—</span><span class="unit">LP</span></div>
+      </div>
+
+      <div class="center">
+        <div class="gap-label">GAP</div>
+        <div class="gap-value" id="gap">+0</div>
+        <div class="gap-leader" id="leader">cargando…</div>
+      </div>
+
+      <div class="player right" id="p2" data-tier="">
+        <span class="medal" id="p2-medal">·</span>
+        <div class="player-info">
+          <div class="player-name">CAL Destroyersit</div>
+          <div class="player-rank" id="p2-rank">…</div>
+        </div>
+        <div class="player-lp"><span id="p2-lp">—</span><span class="unit">LP</span></div>
+      </div>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const refreshMs =
+        Math.max(30, parseInt(params.get("refresh") || "60", 10)) * 1000;
+
+      const REGION = "euw";
+      const PLAYERS = [
+        { riot: "SevillanaEnjoyer#CARLA", short: "Sevillana", id: "p1" },
+        { riot: "CAL Destroyersit#EUW", short: "CAL", id: "p2" },
+      ];
+
+      const TIERS = [
+        "IRON",
+        "BRONZE",
+        "SILVER",
+        "GOLD",
+        "PLATINUM",
+        "EMERALD",
+        "DIAMOND",
+        "MASTER",
+        "GRANDMASTER",
+        "CHALLENGER",
+      ];
+      const DIVS = ["IV", "III", "II", "I"];
+
+      let lastGap = null;
+
+      function totalLp(tier, division, lp) {
+        const i = TIERS.indexOf((tier || "").toUpperCase());
+        if (i < 0) return 0;
+        if (i >= 7) return 2800 + (lp || 0);
+        const d = DIVS.indexOf((division || "").toUpperCase());
+        return i * 400 + Math.max(d, 0) * 100 + (lp || 0);
+      }
+
+      function rankLabel(r) {
+        if (!r || r.tier === "Unranked") return "UNRANKED";
+        const t = (r.tier || "").toUpperCase();
+        if (TIERS.indexOf(t) >= 7) return t;
+        return `${t} ${r.division || ""}`.trim();
+      }
+
+      async function fetchRank(riot) {
+        const idx = riot.indexOf("#");
+        const name = idx >= 0 ? riot.slice(0, idx) : riot;
+        const tag = idx >= 0 ? riot.slice(idx + 1) : "";
+        const res = await fetch(
+          `/api/rank?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}&region=${REGION}`,
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "error");
+        return data;
+      }
+
+      function applyPlayer(slotId, data) {
+        const el = document.getElementById(slotId);
+        const tierLow = (data.tier || "unranked").toLowerCase();
+        el.dataset.tier = tierLow;
+
+        document.getElementById(`${slotId}-rank`).textContent = rankLabel(data);
+        document.getElementById(`${slotId}-lp`).textContent =
+          data.tier === "Unranked" ? "—" : data.lp;
+      }
+
+      async function tick() {
+        try {
+          const results = await Promise.all(
+            PLAYERS.map((p) =>
+              fetchRank(p.riot).catch((e) => ({ error: e.message })),
+            ),
+          );
+
+          PLAYERS.forEach((p, i) => {
+            const d = results[i];
+            if (d.error) {
+              document.getElementById(`${p.id}-rank`).textContent = "ERROR";
+              return;
+            }
+            applyPlayer(p.id, d);
+          });
+
+          // Compute gap
+          const lps = results.map((d, i) =>
+            d && !d.error ? totalLp(d.tier, d.division, d.lp) : null,
+          );
+          if (lps[0] !== null && lps[1] !== null) {
+            const gap = Math.abs(lps[0] - lps[1]);
+            const leaderIdx = lps[0] >= lps[1] ? 0 : 1;
+            const trailerIdx = 1 - leaderIdx;
+
+            document.getElementById("gap").textContent =
+              gap === 0 ? "0" : `+${gap}`;
+            document.getElementById("leader").textContent =
+              gap === 0
+                ? "EMPATE"
+                : `${PLAYERS[leaderIdx].short} ahead`;
+
+            // Medals
+            document.getElementById(`${PLAYERS[leaderIdx].id}-medal`).textContent =
+              gap === 0 ? "🤝" : "🥇";
+            document.getElementById(`${PLAYERS[trailerIdx].id}-medal`).textContent =
+              gap === 0 ? "🤝" : "🥈";
+
+            // Pulse on gap change
+            if (lastGap !== null && gap !== lastGap) {
+              const bar = document.getElementById("bar");
+              bar.classList.remove("pulse-update");
+              void bar.offsetWidth;
+              bar.classList.add("pulse-update");
+            }
+            lastGap = gap;
+          }
+        } catch (e) {
+          console.error("overlay challenge:", e);
+        }
+      }
+
+      tick();
+      setInterval(tick, refreshMs);
+    </script>
+  </body>
+</html>
