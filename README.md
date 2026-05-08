@@ -25,6 +25,8 @@ Opcionales:
 
 Sin base de datos, el historico del reto cae a `localStorage` en el navegador.
 Vercel Cron ejecuta `/api/challenge-snapshot` a diario a las 07:00 UTC.
+El watcher de Twitch se configura con cron externo cada 15 minutos; ver
+`docs/cronjobs.md`.
 
 ## Seguridad
 
