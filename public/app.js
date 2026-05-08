@@ -264,7 +264,7 @@ const TWITCH_CHANNELS = {
   "koldoabalos#psoe": "Votillas",
   "stellar#aco": "xstellar_",
   "sevillanaenjoyer#carla": "xstellar_",
-  "cal destroyersit#EUW": "destr0lol",
+  "CAL Destroyersit#EUW": "destr0lol",
 };
 
 function twitchChannelForRiotId(riotId) {
