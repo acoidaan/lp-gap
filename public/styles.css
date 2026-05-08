@@ -412,7 +412,7 @@ input:focus {
   font-weight: 500;
 }
 
-/* ── Sidebar ── */
+/* Sidebar */
 .sidebar {
   width: 320px;
   flex-shrink: 0;
