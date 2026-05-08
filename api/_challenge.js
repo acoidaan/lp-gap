@@ -153,7 +153,7 @@ async function ensureSchema(sql) {
   `;
 }
 
-async function saveSnapshot(players) {
+async function saveSnapshot(players, challengeId = CHALLENGE_ID) {
   const sql = sqlClient();
   await ensureSchema(sql);
   const recordedAt = new Date();
@@ -176,7 +176,7 @@ async function saveSnapshot(players) {
         recorded_at
       )
       VALUES (
-        ${CHALLENGE_ID},
+        ${challengeId},
         ${p.riotId},
         ${p.name},
         ${p.tag},
@@ -194,6 +194,50 @@ async function saveSnapshot(players) {
   }
 
   return recordedAt;
+}
+
+// Devuelve el grupo de filas con el recorded_at más reciente para ese
+// challengeId. Si lo llamas ANTES de saveSnapshot ese grupo es el
+// "snapshot anterior" del que partir para diffs.
+async function fetchLatestSnapshot(challengeId) {
+  const sql = sqlClient();
+  await ensureSchema(sql);
+  const rows = await sql`
+    SELECT
+      riot_id,
+      game_name,
+      tag_line,
+      tier,
+      division,
+      lp,
+      wins,
+      losses,
+      total_lp,
+      recorded_at
+    FROM challenge_snapshots
+    WHERE challenge_id = ${challengeId}
+    ORDER BY recorded_at DESC
+    LIMIT 60
+  `;
+
+  if (rows.length === 0) return { recordedAt: null, byRiotId: {} };
+  const latestTs = new Date(rows[0].recorded_at).getTime();
+  const byRiotId = {};
+  for (const row of rows) {
+    if (new Date(row.recorded_at).getTime() !== latestTs) break;
+    byRiotId[row.riot_id] = {
+      riotId: row.riot_id,
+      name: row.game_name,
+      tag: row.tag_line,
+      tier: row.tier,
+      division: row.division,
+      lp: Number(row.lp),
+      wins: Number(row.wins),
+      losses: Number(row.losses),
+      totalLp: Number(row.total_lp),
+    };
+  }
+  return { recordedAt: new Date(latestTs), byRiotId };
 }
 
 async function listSnapshots() {
@@ -255,9 +299,11 @@ module.exports = {
   CHALLENGE_ID,
   CHALLENGE_PLAYERS,
   CHALLENGE_REGION,
+  fetchLatestSnapshot,
   fetchRankForRiotId,
   isAuthorized,
   isDatabaseConfigured,
   listSnapshots,
   saveSnapshot,
+  sqlClient,
 };

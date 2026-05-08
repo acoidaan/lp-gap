@@ -268,6 +268,7 @@ const TWITCH_CHANNELS = {
   "stellar#aco": "xstellar_",
   "sevillanaenjoyer#carla": "xstellar_",
   "cal destroyersit#euw": "destr0lol",
+  "elmillor11#gordo": "elmiillor",
 };
 
 function twitchChannelForRiotId(riotId) {
@@ -1572,7 +1573,8 @@ function applyLiveIndicators() {
       if (stream) {
         twitchLink.classList.add("is-live");
         twitchLink.textContent = "LIVE";
-        twitchLink.title = `🔴 ${stream.userName || channel} · ${stream.viewerCount} viewers · ${stream.gameName || ""}`.trim();
+        twitchLink.title =
+          `🔴 ${stream.userName || channel} · ${stream.viewerCount} viewers · ${stream.gameName || ""}`.trim();
       } else {
         twitchLink.classList.remove("is-live");
         twitchLink.textContent = "TW";
