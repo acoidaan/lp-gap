@@ -355,21 +355,52 @@ function drawShareStat(ctx, label, value, x, y, w) {
   drawFittedText(ctx, value, x + w / 2, y + 38, w - 10, 34, 22, 900);
 }
 
+function loadCanvasImage(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function drawClippedImage(ctx, img, x, y, w, h, r) {
+  ctx.save();
+  roundRectPath(ctx, x, y, w, h, r);
+  ctx.clip();
+
+  const scale = Math.max(w / img.width, h / img.height);
+  const dw = img.width * scale;
+  const dh = img.height * scale;
+  ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+
+  ctx.restore();
+}
+
 function drawPlayerSharePanel(ctx, player, x, y, w, h) {
   const tk = tierKey(player.rank);
   const tc = TIER_COLORS[tk] || TIER_COLORS.UNRANKED;
   const wr = winRate(player.rank);
   const total = totalGames(player.rank);
+  const avatarX = x + 30;
+  const avatarY = y + 34;
+  const avatarSize = 64;
 
   fillRoundRect(ctx, x, y, w, h, 22, "#16171e");
   strokeRoundRect(ctx, x, y, w, h, 22, "#2a2b35", 2);
   fillRoundRect(ctx, x, y, w, 6, 22, tc.bg);
 
-  fillRoundRect(ctx, x + 30, y + 34, 64, 64, 16, tc.bg);
-  ctx.fillStyle = tc.text;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  drawFittedText(ctx, player.name.slice(0, 1).toUpperCase() || "?", x + 62, y + 67, 46, 38, 24, 900);
+  fillRoundRect(ctx, avatarX, avatarY, avatarSize, avatarSize, 16, tc.bg);
+  if (player.iconImage) {
+    drawClippedImage(ctx, player.iconImage, avatarX, avatarY, avatarSize, avatarSize, 16);
+  } else {
+    ctx.fillStyle = tc.text;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    drawFittedText(ctx, player.name.slice(0, 1).toUpperCase() || "?", x + 62, y + 67, 46, 38, 24, 900);
+  }
+  strokeRoundRect(ctx, avatarX, avatarY, avatarSize, avatarSize, 16, tc.bg, 4);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
@@ -395,11 +426,17 @@ function drawPlayerSharePanel(ctx, player, x, y, w, h) {
   drawShareStat(ctx, "W / L", `${player.rank.wins || 0} / ${player.rank.losses || 0}`, x + 46 + statW * 2, statY, statW);
 }
 
-function makeShareCanvas(data) {
+async function makeShareCanvas(data) {
   const canvas = document.createElement("canvas");
   canvas.width = 1200;
   canvas.height = 675;
   const ctx = canvas.getContext("2d");
+  const players = await Promise.all(
+    data.players.map(async (player) => ({
+      ...player,
+      iconImage: await loadCanvasImage(iconUrl(player.rank.iconId || 29)),
+    })),
+  );
 
   ctx.fillStyle = "#0d0e13";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -439,8 +476,8 @@ function makeShareCanvas(data) {
   ctx.font = "700 24px Inter, Arial, sans-serif";
   drawFittedText(ctx, data.leaderText, canvas.width / 2, 306, 360, 24, 16, 800);
 
-  drawPlayerSharePanel(ctx, data.players[0], 72, 370, 500, 245);
-  drawPlayerSharePanel(ctx, data.players[1], 628, 370, 500, 245);
+  drawPlayerSharePanel(ctx, players[0], 72, 370, 500, 245);
+  drawPlayerSharePanel(ctx, players[1], 628, 370, 500, 245);
 
   return canvas;
 }
@@ -480,7 +517,7 @@ async function copyShareCard() {
   setShareStatus("Generando tarjeta...");
 
   try {
-    const canvas = makeShareCanvas(lastComparison);
+    const canvas = await makeShareCanvas(lastComparison);
     const blob = await canvasToBlob(canvas);
 
     if (navigator.clipboard && window.ClipboardItem) {
@@ -494,7 +531,7 @@ async function copyShareCard() {
     }
   } catch {
     try {
-      const canvas = makeShareCanvas(lastComparison);
+      const canvas = await makeShareCanvas(lastComparison);
       const blob = await canvasToBlob(canvas);
       downloadBlob(blob, shareFilename(lastComparison));
       setShareStatus("PNG descargado");
