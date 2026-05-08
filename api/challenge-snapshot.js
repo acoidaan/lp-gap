@@ -36,8 +36,8 @@ function challengePhase() {
 
 function shortName(name) {
   if (!name) return "?";
-  if (/^Sevillana/i.test(name)) return "Sevi";
-  if (/^CAL/i.test(name)) return "CAL";
+  if (/^Sevillana/i.test(name)) return "SevillanaEnjoyer";
+  if (/^CAL/i.test(name)) return "Destro";
   return name.slice(0, 8).trim();
 }
 
