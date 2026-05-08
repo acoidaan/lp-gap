@@ -284,7 +284,7 @@ function buildTwitchLink(riotId, variant = "player") {
       ? "stream-link stream-link-ladder"
       : "ext-link stream-link";
 
-  return `<a href="${url}" target="_blank" rel="noopener" class="${cls}" title="Twitch: ${esc(handle)}">${label}</a>`;
+  return `<a href="${url}" target="_blank" rel="noopener" class="${cls}" data-twitch-channel="${esc(handle.toLowerCase())}" title="Twitch: ${esc(handle)}">${label}</a>`;
 }
 
 function rankLP(r) {
@@ -1286,7 +1286,7 @@ function renderLadder(players, cutoffs) {
         const [errName, errTag] = p.riotId.split("#");
         const errOpgg = `https://www.op.gg/summoners/${LADDER_REGION}/${encodeURIComponent(errName)}-${encodeURIComponent(errTag || "")}`;
         const errTwitchLink = buildTwitchLink(p.riotId, "ladder");
-        return `<div class="ladder-row">
+        return `<div class="ladder-row" data-riot-id="${esc(p.riotId)}">
   <span class="ladder-pos" style="color:${posColors[i] || "var(--dim)"}">#${i + 1}</span>
   <div class="ladder-info" style="margin-left:46px">
     <div class="ladder-name"><a href="${errOpgg}" target="_blank" rel="noopener">${esc(errName)}</a>${errTwitchLink}</div>

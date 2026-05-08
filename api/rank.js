@@ -74,6 +74,7 @@ module.exports = async (req, res) => {
         wins: 0,
         losses: 0,
         iconId,
+        puuid: acc.puuid,
       });
     }
 
@@ -84,6 +85,7 @@ module.exports = async (req, res) => {
       wins: solo.wins,
       losses: solo.losses,
       iconId,
+      puuid: acc.puuid,
     });
   } catch (e) {
     console.error("LP GAP ERROR:", e.message);
