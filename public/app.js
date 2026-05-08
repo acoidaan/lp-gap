@@ -785,6 +785,19 @@ function loadChallengeHistory() {
   }
 }
 
+async function fetchChallengeHistory() {
+  try {
+    const res = await fetch("/api/challenge-history");
+    const data = await res.json();
+    if (!res.ok || !data.configured || !Array.isArray(data.snapshots)) {
+      return null;
+    }
+    return data.snapshots;
+  } catch {
+    return null;
+  }
+}
+
 function saveChallengeSnapshot(players) {
   try {
     const history = loadChallengeHistory();
@@ -871,7 +884,7 @@ function challengeGraphSvg(history, p1Id, p2Id) {
   </svg>`;
 }
 
-function renderChallenge(players, history) {
+function renderChallenge(players, history, historySource = "local") {
   const body = document.getElementById("challenge-body");
   if (!body) return;
 
@@ -925,7 +938,7 @@ function renderChallenge(players, history) {
 
     <div class="challenge-chart-card">
       <div class="challenge-chart-head">
-        <span>Evolucion local</span>
+        <span>Evolucion ${historySource}</span>
         <strong>${history.length} snapshots</strong>
       </div>
       ${challengeGraphSvg(history, p1.riotId, p2.riotId)}
@@ -955,6 +968,7 @@ async function refreshChallenge(force = false) {
   }
 
   try {
+    const remoteHistoryPromise = fetchChallengeHistory();
     const players = await Promise.all(
       CHALLENGE_PLAYERS.map(async (riotId) => {
         const { name, tag } = parseRiotId(riotId);
@@ -970,10 +984,14 @@ async function refreshChallenge(force = false) {
         }
       }),
     );
-    const history = players.some((p) => p.error)
-      ? loadChallengeHistory()
-      : saveChallengeSnapshot(players);
-    renderChallenge(players, history);
+    const remoteHistory = await remoteHistoryPromise;
+    const historySource = remoteHistory ? "remota" : "local";
+    const history = remoteHistory
+      ? remoteHistory
+      : players.some((p) => p.error)
+        ? loadChallengeHistory()
+        : saveChallengeSnapshot(players);
+    renderChallenge(players, history, historySource);
   } finally {
     challengeRefreshing = false;
     if (btn) {

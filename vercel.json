@@ -1,4 +1,10 @@
 {
   "buildCommand": "",
-  "outputDirectory": "public"
+  "outputDirectory": "public",
+  "crons": [
+    {
+      "path": "/api/challenge-snapshot",
+      "schedule": "0 7 * * *"
+    }
+  ]
 }
