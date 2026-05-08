@@ -22,13 +22,16 @@ async function ensureSchema(sql) {
 }
 
 async function readState(sql, channels) {
+  // Tabla pequeñísima (1 fila por canal vigilado). Traemos todo y filtramos
+  // en JS para no depender del cast de arrays del driver HTTP de Neon.
   const rows = await sql`
     SELECT channel, is_live, started_at
     FROM twitch_live_state
-    WHERE channel = ANY(${channels})
   `;
+  const wanted = new Set(channels);
   const byChannel = {};
   for (const row of rows) {
+    if (!wanted.has(row.channel)) continue;
     byChannel[row.channel] = {
       isLive: Boolean(row.is_live),
       startedAt: row.started_at,
