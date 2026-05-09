@@ -977,6 +977,19 @@ function buildObsOverlayUrl() {
     return absoluteUrl(`/overlay/challenge.html?refresh=${refresh}&cycle=${cycle}`);
   }
 
+  if (obsType === "road") {
+    const cycle = clampNumber(
+      document.getElementById("obs-cycle")?.value,
+      10,
+      3,
+      60,
+    );
+    const player = document.getElementById("obs-player")?.value || CHALLENGE_PLAYERS[0];
+    return absoluteUrl(
+      `/overlay/road.html?riot=${encodeURIComponent(player)}&region=${CHALLENGE_REGION}&refresh=${refresh}&cycle=${cycle}`,
+    );
+  }
+
   if (obsType === "alerts") {
     const duration = clampNumber(
       document.getElementById("obs-duration")?.value,
@@ -1009,7 +1022,7 @@ function updateObsControls() {
   const durationField = document.getElementById("obs-duration-field");
   const soundField = document.getElementById("obs-sound-field");
   const testField = document.getElementById("obs-test-field");
-  if (playerField) playerField.hidden = obsType !== "solo";
+  if (playerField) playerField.hidden = !["solo", "road"].includes(obsType);
   if (cycleField) cycleField.hidden = obsType === "alerts";
   if (durationField) durationField.hidden = obsType !== "alerts";
   if (soundField) soundField.hidden = obsType !== "alerts";

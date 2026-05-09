@@ -62,14 +62,21 @@ module.exports = async (req, res) => {
   if (!route) return res.status(400).json({ error: "Region invalida" });
 
   const startedAfter = Number(req.query.startedAfter || 0);
+  const queue = String(req.query.queue || "420").trim().toLowerCase();
+  const countRaw = Number.parseInt(req.query.count || "5", 10);
+  const count = Number.isFinite(countRaw)
+    ? Math.min(20, Math.max(1, countRaw))
+    : 5;
   const minStart = Number.isFinite(startedAfter) && startedAfter > 0
     ? startedAfter - 15 * 60 * 1000
     : 0;
 
   try {
     const base = `https://${route.region}.api.riotgames.com/lol/match/v5`;
+    const queuePart =
+      queue && queue !== "all" ? `queue=${encodeURIComponent(queue)}&` : "";
     const ids = await riot(
-      `${base}/matches/by-puuid/${encodeURIComponent(puuid)}/ids?queue=420&start=0&count=5`,
+      `${base}/matches/by-puuid/${encodeURIComponent(puuid)}/ids?${queuePart}start=0&count=${count}`,
       apiKey,
       "Match ids",
     );

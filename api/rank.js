@@ -51,6 +51,7 @@ module.exports = async (req, res) => {
       "Summoner lookup",
     );
     const iconId = sum ? sum.profileIconId : 29;
+    const summonerLevel = sum ? Number(sum.summonerLevel || 0) : 0;
 
     // 3 — Datos de ranked con PUUID
     const ranks = await riot(
@@ -74,6 +75,7 @@ module.exports = async (req, res) => {
         wins: 0,
         losses: 0,
         iconId,
+        summonerLevel,
         puuid: acc.puuid,
       });
     }
@@ -85,6 +87,7 @@ module.exports = async (req, res) => {
       wins: solo.wins,
       losses: solo.losses,
       iconId,
+      summonerLevel,
       puuid: acc.puuid,
     });
   } catch (e) {

@@ -1,0 +1,808 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LP GAP - Road to Ranked Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        background: transparent;
+        color: #f5e9c8;
+        font-family: "Inter", system-ui, sans-serif;
+        overflow: hidden;
+      }
+
+      body {
+        display: inline-block;
+        padding: 6px;
+      }
+
+      .overlay {
+        --accent: #c89b3c;
+        --good: #6ce8a3;
+        --bad: #ff8197;
+        position: relative;
+        display: grid;
+        grid-template-columns: minmax(350px, 350px) 116px;
+        width: 482px;
+        min-height: 82px;
+        overflow: hidden;
+        border: 1px solid rgba(200, 155, 60, 0.36);
+        border-radius: 10px;
+        background:
+          linear-gradient(180deg, rgba(18, 20, 31, 0.96), rgba(8, 10, 17, 0.96)),
+          rgba(8, 10, 17, 0.96);
+        box-shadow:
+          0 6px 22px rgba(0, 0, 0, 0.55),
+          inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(8px);
+      }
+
+      .overlay::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, #62d68a 0%, #c89b3c 48%, #d177ff 100%);
+        opacity: 0.9;
+        z-index: 3;
+      }
+
+      .carousel {
+        position: relative;
+        height: 82px;
+        overflow: hidden;
+      }
+
+      .road-slide {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) 72px;
+        align-items: center;
+        gap: 13px;
+        padding: 12px 14px 10px 14px;
+        opacity: 0;
+        transform: translateY(110%);
+        transition:
+          transform 540ms cubic-bezier(0.22, 0.8, 0.22, 1),
+          opacity 280ms ease;
+      }
+
+      .road-slide.active {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .road-slide.off-up,
+      .road-slide.exit-up {
+        opacity: 0;
+        transform: translateY(-110%);
+      }
+
+      .road-slide.off-down,
+      .road-slide.exit-down {
+        opacity: 0;
+        transform: translateY(110%);
+      }
+
+      .avatar {
+        width: 42px;
+        height: 42px;
+        overflow: hidden;
+        border: 2px solid var(--accent);
+        border-radius: 9px;
+        background: #171922;
+        box-shadow: 0 0 14px rgba(0, 0, 0, 0.25);
+      }
+
+      .avatar img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .copy {
+        min-width: 0;
+      }
+
+      .name-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+      }
+
+      .player-name,
+      .headline {
+        overflow: hidden;
+        color: #f7f1df;
+        font-size: 13px;
+        font-weight: 900;
+        line-height: 1;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .player-tag {
+        color: rgba(245, 233, 200, 0.5);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+      }
+
+      .label {
+        margin-top: 7px;
+        overflow: hidden;
+        color: var(--accent);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        line-height: 1;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .subline {
+        margin-top: 6px;
+        overflow: hidden;
+        color: rgba(245, 233, 200, 0.56);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        line-height: 1;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .value-block {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .value {
+        color: var(--accent);
+        font-size: 24px;
+        font-weight: 900;
+        line-height: 1;
+        text-shadow: 0 0 18px rgba(240, 178, 50, 0.34);
+        white-space: nowrap;
+      }
+
+      .unit {
+        display: block;
+        margin-top: 5px;
+        color: rgba(245, 233, 200, 0.56);
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        line-height: 1;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .thin-track {
+        width: 100%;
+        height: 5px;
+        margin-top: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .thin-track span {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #62d68a, var(--accent));
+        transition: width 520ms ease;
+      }
+
+      .progress-panel {
+        position: relative;
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 12px;
+        border-left: 1px solid rgba(200, 155, 60, 0.25);
+        background:
+          radial-gradient(circle at 50% 20%, rgba(98, 214, 138, 0.13), transparent 58%),
+          rgba(255, 255, 255, 0.02);
+      }
+
+      .panel-label {
+        color: rgba(245, 233, 200, 0.56);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.28em;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .panel-value {
+        margin-top: 5px;
+        color: #f0b232;
+        font-size: 27px;
+        font-weight: 900;
+        font-variant-numeric: tabular-nums;
+        line-height: 1;
+        text-shadow: 0 0 18px rgba(240, 178, 50, 0.42);
+      }
+
+      .panel-small {
+        max-width: 92px;
+        margin-top: 6px;
+        overflow: hidden;
+        color: rgba(245, 233, 200, 0.66);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.11em;
+        line-height: 1;
+        text-align: center;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .panel-track {
+        width: 74px;
+        height: 5px;
+        margin-top: 7px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .panel-track span {
+        display: block;
+        width: 0;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #62d68a, #f0b232);
+        transition: width 520ms ease;
+      }
+
+      .good {
+        color: var(--good);
+      }
+
+      .bad {
+        color: var(--bad);
+      }
+
+      .muted {
+        color: rgba(245, 233, 200, 0.56);
+      }
+
+      .pulse-update {
+        animation: pulse 650ms ease-out;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow:
+            0 6px 22px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 0 0 0 rgba(240, 200, 100, 0.58);
+        }
+        100% {
+          box-shadow:
+            0 6px 22px rgba(0, 0, 0, 0.55),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04),
+            0 0 0 22px rgba(240, 200, 100, 0);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .road-slide {
+          transition: opacity 180ms ease;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="overlay" id="bar">
+      <div class="carousel" id="carousel">
+        <section class="road-slide active" id="slide-level">
+          <div class="avatar"><img id="profile-avatar" alt="" /></div>
+          <div class="copy">
+            <div class="name-row">
+              <span class="player-name" id="player-name">...</span>
+              <span class="player-tag" id="player-tag"></span>
+            </div>
+            <div class="label" id="level-label">Road to Ranked</div>
+            <div class="thin-track"><span id="level-fill"></span></div>
+          </div>
+          <div class="value-block">
+            <div class="value" id="level-value">-</div>
+            <span class="unit">Nivel</span>
+          </div>
+        </section>
+
+        <section class="road-slide off-down" id="slide-session">
+          <div class="avatar"><img id="session-avatar" alt="" /></div>
+          <div class="copy">
+            <div class="headline">Sesion actual</div>
+            <div class="label" id="session-record">0W / 0L</div>
+            <div class="subline" id="session-streak">Sin racha</div>
+          </div>
+          <div class="value-block">
+            <div class="value" id="session-games">0</div>
+            <span class="unit">Games</span>
+          </div>
+        </section>
+
+        <section class="road-slide off-down" id="slide-last">
+          <div class="avatar"><img id="last-avatar" alt="" /></div>
+          <div class="copy">
+            <div class="headline" id="last-title">Ultima partida</div>
+            <div class="label" id="last-champion">Sin datos</div>
+            <div class="subline" id="last-meta">Esperando recap</div>
+          </div>
+          <div class="value-block">
+            <div class="value" id="last-kda">-</div>
+            <span class="unit">KDA</span>
+          </div>
+        </section>
+
+        <section class="road-slide off-down" id="slide-live">
+          <div class="avatar"><img id="live-avatar" alt="" /></div>
+          <div class="copy">
+            <div class="headline" id="live-title">Estado actual</div>
+            <div class="label" id="live-label">Fuera de partida</div>
+            <div class="subline" id="live-meta">Esperando partida</div>
+          </div>
+          <div class="value-block">
+            <div class="value" id="live-value">OFF</div>
+            <span class="unit" id="live-unit">Now</span>
+          </div>
+        </section>
+      </div>
+
+      <aside class="progress-panel">
+        <div class="panel-label">Road</div>
+        <div class="panel-value" id="panel-value">-</div>
+        <div class="panel-small" id="panel-small">Nivel 30</div>
+        <div class="panel-track"><span id="panel-fill"></span></div>
+      </aside>
+    </div>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const riot = (params.get("riot") || "").trim();
+      const region = (params.get("region") || "euw").trim();
+      const refreshMs =
+        Math.max(30, parseInt(params.get("refresh") || "60", 10)) * 1000;
+      const cycleMs =
+        Math.max(3, parseInt(params.get("cycle") || "10", 10)) * 1000;
+      const direction = params.get("direction") === "down" ? "down" : "up";
+      const TARGET_LEVEL = 30;
+      const SESSION_MAX_AGE = 16 * 60 * 60 * 1000;
+
+      const QUEUES = {
+        400: "Draft",
+        420: "SoloQ",
+        430: "Blind",
+        440: "Flex",
+        450: "ARAM",
+        480: "Swiftplay",
+        490: "Quickplay",
+        700: "Clash",
+        900: "ARURF",
+        1020: "One for All",
+        1700: "Arena",
+      };
+
+      const id = parseRiotId(riot);
+      const sessionKey = `lpgap_road_session_${safeKey(riot || "unknown")}_v1`;
+      let ddragonVersion = "15.7.1";
+      let championById = null;
+      let championDataPromise = null;
+      let activeIndex = 0;
+      let profileIconUrl = "";
+      let lastPulseKey = "";
+      let currentLevel = 0;
+      let session = loadSession();
+
+      const slides = Array.from(document.querySelectorAll(".road-slide"));
+
+      document.getElementById("player-name").textContent = id.name || "...";
+      document.getElementById("player-tag").textContent = id.tag ? `#${id.tag}` : "";
+
+      fetch("https://ddragon.leagueoflegends.com/api/versions.json")
+        .then((r) => r.json())
+        .then((v) => {
+          if (v && v[0]) ddragonVersion = v[0];
+        })
+        .catch(() => {});
+
+      function parseRiotId(riotId) {
+        const idx = riotId.indexOf("#");
+        return {
+          name: idx >= 0 ? riotId.slice(0, idx).trim() : riotId.trim(),
+          tag: idx >= 0 ? riotId.slice(idx + 1).trim() : "",
+        };
+      }
+
+      function safeKey(value) {
+        return String(value || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_+|_+$/g, "");
+      }
+
+      function blankSession() {
+        return {
+          startedAt: Date.now(),
+          levelStart: null,
+          games: 0,
+          wins: 0,
+          losses: 0,
+          streak: 0,
+          lastMatchId: null,
+          lastGame: null,
+        };
+      }
+
+      function loadSession() {
+        try {
+          const raw = localStorage.getItem(sessionKey);
+          const data = raw ? JSON.parse(raw) : null;
+          if (!data || !data.startedAt || Date.now() - data.startedAt > SESSION_MAX_AGE) {
+            return blankSession();
+          }
+          return { ...blankSession(), ...data };
+        } catch {
+          return blankSession();
+        }
+      }
+
+      function saveSession() {
+        try {
+          localStorage.setItem(sessionKey, JSON.stringify(session));
+        } catch {}
+      }
+
+      function offClass() {
+        return direction === "down" ? "off-up" : "off-down";
+      }
+
+      function exitClass() {
+        return direction === "down" ? "exit-down" : "exit-up";
+      }
+
+      function rotateSlide() {
+        const nextIndex = (activeIndex + 1) % slides.length;
+        const current = slides[activeIndex];
+        const next = slides[nextIndex];
+        next.className = `road-slide ${offClass()}`;
+
+        requestAnimationFrame(() => {
+          current.className = `road-slide ${exitClass()}`;
+          next.className = "road-slide active";
+        });
+
+        setTimeout(() => {
+          current.className = `road-slide ${offClass()}`;
+        }, 620);
+
+        activeIndex = nextIndex;
+      }
+
+      function iconUrl(id) {
+        return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/profileicon/${id || 29}.png`;
+      }
+
+      function queueName(queueId) {
+        return QUEUES[Number(queueId)] || "Partida";
+      }
+
+      function fmtDuration(seconds) {
+        const s = Math.max(0, Math.floor(seconds || 0));
+        if (s < 60) return `${s}s`;
+        return `${Math.floor(s / 60)}min`;
+      }
+
+      function wr() {
+        return session.games > 0 ? Math.round((session.wins / session.games) * 100) : 0;
+      }
+
+      function loadChampionData() {
+        if (championById) return Promise.resolve(championById);
+        if (championDataPromise) return championDataPromise;
+        championDataPromise = fetch(
+          `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/en_US/champion.json`,
+        )
+          .then((r) => r.json())
+          .then((data) => {
+            const map = {};
+            Object.values(data.data || {}).forEach((champ) => {
+              map[Number(champ.key)] = champ;
+            });
+            championById = map;
+            return map;
+          })
+          .catch(() => {
+            championById = {};
+            return championById;
+          });
+        return championDataPromise;
+      }
+
+      function championIcon(championId) {
+        const champ = championById && championById[championId];
+        if (!champ) return "";
+        return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${champ.id}.png`;
+      }
+
+      function championName(championId, fallback) {
+        const champ = championById && championById[championId];
+        return champ ? champ.name : fallback || "Champion";
+      }
+
+      async function fetchRank() {
+        const res = await fetch(
+          `/api/rank?name=${encodeURIComponent(id.name)}&tag=${encodeURIComponent(id.tag)}&region=${encodeURIComponent(region)}`,
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "rank error");
+        return data;
+      }
+
+      async function fetchLive(puuid) {
+        if (!puuid) return null;
+        const res = await fetch(
+          `/api/live?puuid=${encodeURIComponent(puuid)}&region=${encodeURIComponent(region)}`,
+        );
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data && data.inGame ? data : null;
+      }
+
+      async function fetchLatestMatch(puuid) {
+        if (!puuid) return null;
+        const res = await fetch(
+          `/api/latest-match?puuid=${encodeURIComponent(puuid)}&region=${encodeURIComponent(region)}&queue=all&count=8`,
+        );
+        if (!res.ok) return null;
+        return res.json();
+      }
+
+      function setAvatar(target, src) {
+        const el = document.getElementById(target);
+        if (el && src) el.src = src;
+      }
+
+      function applyLevel(data) {
+        const level = Number(data.summonerLevel || 0);
+        currentLevel = level;
+        if (session.levelStart === null) {
+          session.levelStart = level;
+          saveSession();
+        }
+
+        profileIconUrl = iconUrl(data.iconId || 29);
+        ["profile-avatar", "session-avatar", "live-avatar"].forEach((target) =>
+          setAvatar(target, profileIconUrl),
+        );
+
+        const capped = Math.min(TARGET_LEVEL, Math.max(0, level));
+        const pct = Math.round((capped / TARGET_LEVEL) * 100);
+        const missing = Math.max(0, TARGET_LEVEL - level);
+        const gained = Math.max(0, level - Number(session.levelStart || level));
+
+        document.getElementById("level-value").textContent = String(level || "-");
+        document.getElementById("level-label").textContent =
+          level >= TARGET_LEVEL
+            ? "Rankeds desbloqueadas"
+            : `Faltan ${missing} niveles`;
+        document.getElementById("level-fill").style.width = `${pct}%`;
+        document.getElementById("panel-value").textContent =
+          level >= TARGET_LEVEL ? "Ready" : String(level || "-");
+        document.getElementById("panel-small").textContent =
+          level >= TARGET_LEVEL ? "Ranked ok" : `${level || 0}/30`;
+        document.getElementById("panel-fill").style.width = `${pct}%`;
+      }
+
+      function applySession() {
+        const record = `${session.wins}W / ${session.losses}L`;
+        let streak =
+          session.streak > 0
+            ? `Racha ${session.streak}W`
+            : session.streak < 0
+              ? `Racha ${Math.abs(session.streak)}L`
+              : "Sin racha";
+        const gained = Math.max(
+          0,
+          Number(currentLevel || 0) - Number(session.levelStart || currentLevel || 0),
+        );
+        if (gained > 0) {
+          streak = streak === "Sin racha" ? `Nivel +${gained}` : `${streak} - Nivel +${gained}`;
+        }
+
+        document.getElementById("session-record").textContent =
+          session.games > 0 ? `${record} - ${wr()}% WR` : record;
+        document.getElementById("session-games").textContent = String(session.games);
+        document.getElementById("session-streak").textContent = streak;
+      }
+
+      function storeLatestGame(match) {
+        if (!match || !match.matchId) return;
+
+        const compact = {
+          matchId: match.matchId,
+          championId: match.championId,
+          championName: match.championName,
+          win: Boolean(match.win),
+          kills: match.kills || 0,
+          deaths: match.deaths || 0,
+          assists: match.assists || 0,
+          kda: match.kda || "0.00",
+          gameDuration: match.gameDuration || 0,
+          gameEndTimestamp: match.gameEndTimestamp || 0,
+          queueId: match.queueId || 0,
+        };
+
+        if (!session.lastMatchId) {
+          session.lastMatchId = compact.matchId;
+          session.lastGame = compact;
+          saveSession();
+          return;
+        }
+
+        if (session.lastMatchId === compact.matchId) {
+          session.lastGame = compact;
+          saveSession();
+          return;
+        }
+
+        if (
+          compact.gameEndTimestamp &&
+          compact.gameEndTimestamp < session.startedAt - 5 * 60 * 1000
+        ) {
+          session.lastMatchId = compact.matchId;
+          session.lastGame = compact;
+          saveSession();
+          return;
+        }
+
+        session.games += 1;
+        if (compact.win) {
+          session.wins += 1;
+          session.streak = session.streak > 0 ? session.streak + 1 : 1;
+        } else {
+          session.losses += 1;
+          session.streak = session.streak < 0 ? session.streak - 1 : -1;
+        }
+        session.lastMatchId = compact.matchId;
+        session.lastGame = compact;
+        saveSession();
+      }
+
+      function applyLastGame(match) {
+        const game = match || session.lastGame;
+        if (!game) {
+          setAvatar("last-avatar", profileIconUrl);
+          document.getElementById("last-title").textContent = "Ultima partida";
+          document.getElementById("last-champion").textContent = "Sin datos";
+          document.getElementById("last-meta").textContent = "Esperando recap";
+          document.getElementById("last-kda").textContent = "-";
+          return;
+        }
+
+        const champ = championName(game.championId, game.championName);
+        const icon = championIcon(game.championId);
+        setAvatar("last-avatar", icon || profileIconUrl);
+        document.getElementById("last-title").textContent = game.win
+          ? "Victoria"
+          : "Derrota";
+        document.getElementById("last-champion").textContent = champ;
+        document.getElementById("last-meta").textContent =
+          `${queueName(game.queueId)} - ${fmtDuration(game.gameDuration)}`;
+        document.getElementById("last-kda").textContent =
+          `${game.kills}/${game.deaths}/${game.assists}`;
+      }
+
+      function applyLive(live) {
+        if (!live) {
+          setAvatar("live-avatar", profileIconUrl);
+          document.getElementById("live-title").textContent = "Estado actual";
+          document.getElementById("live-label").textContent = "Fuera de partida";
+          document.getElementById("live-meta").textContent = "Esperando partida";
+          document.getElementById("live-value").textContent = "OFF";
+          document.getElementById("live-unit").textContent = "Now";
+          return;
+        }
+
+        const champ = championName(live.championId);
+        const icon = championIcon(live.championId);
+        setAvatar("live-avatar", icon || profileIconUrl);
+        document.getElementById("live-title").textContent = "En partida";
+        document.getElementById("live-label").textContent = champ;
+        document.getElementById("live-meta").textContent =
+          `${queueName(live.gameQueueConfigId)} - ${fmtDuration(live.gameLength)}`;
+        document.getElementById("live-value").textContent = "LIVE";
+        document.getElementById("live-unit").textContent = "Now";
+      }
+
+      function pulseIfChanged(level, live, match) {
+        const key = [
+          level || 0,
+          session.games,
+          session.wins,
+          session.losses,
+          session.streak,
+          live ? live.championId : "off",
+          match && match.matchId ? match.matchId : session.lastMatchId || "none",
+        ].join(":");
+        if (lastPulseKey && key !== lastPulseKey) {
+          const bar = document.getElementById("bar");
+          bar.classList.remove("pulse-update");
+          void bar.offsetWidth;
+          bar.classList.add("pulse-update");
+        }
+        lastPulseKey = key;
+      }
+
+      function showError(message) {
+        document.getElementById("level-label").textContent = message;
+        document.getElementById("session-record").textContent = "Sin datos";
+        document.getElementById("last-meta").textContent = "No se pudo cargar";
+      }
+
+      async function tick() {
+        if (!id.name || !id.tag) {
+          showError("Configura ?riot=Nombre%23Tag");
+          return;
+        }
+
+        try {
+          await loadChampionData();
+          const rank = await fetchRank();
+          applyLevel(rank);
+
+          const [live, match] = await Promise.all([
+            fetchLive(rank.puuid),
+            fetchLatestMatch(rank.puuid),
+          ]);
+
+          storeLatestGame(match);
+          applySession();
+          applyLastGame(match || session.lastGame);
+          applyLive(live);
+          pulseIfChanged(Number(rank.summonerLevel || 0), live, match);
+        } catch (e) {
+          showError(e.message || "Error");
+          console.error("overlay road:", e);
+        }
+      }
+
+      applySession();
+      tick();
+      setInterval(tick, refreshMs);
+      setInterval(rotateSlide, cycleMs);
+    </script>
+  </body>
+</html>

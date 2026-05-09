@@ -37,10 +37,12 @@ La pestana `Stream` genera URLs para OBS y comandos listos para Nightbot:
 - SoloQ Challenge: `https://lp-gap.vercel.app/?view=challenge`
 - Overlay jugador: `/overlay/solo.html?riot=Nombre%23Tag&region=euw&refresh=60&cycle=10`
 - Overlay challenge: `/overlay/challenge.html?refresh=60&cycle=10`
+- Overlay Road to Ranked: `/overlay/road.html?riot=Nombre%23Tag&region=euw&refresh=60&cycle=10`
 - Overlay alertas: `/overlay/alerts.html?refresh=60&duration=6&sound=0`
   (`&test=1` lanza alertas demo para probar en OBS).
 - Nightbot: `$(urlfetch https://TU_DOMINIO/api/command-gap)`,
   `$(urlfetch https://TU_DOMINIO/api/command-reto)`,
+  `$(urlfetch https://TU_DOMINIO/api/command-road?riot=Nombre%23Tag)`,
   `$(urlfetch https://TU_DOMINIO/api/command-lp?riot=Nombre%23Tag)` y
   `$(urlfetch https://TU_DOMINIO/api/command-live)`.
 

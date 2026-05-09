@@ -88,6 +88,7 @@ async function fetchRankForRiotId(riotId, region, apiKey) {
     "Summoner lookup",
   );
   const iconId = sum ? sum.profileIconId : 29;
+  const summonerLevel = sum ? Number(sum.summonerLevel || 0) : 0;
 
   const ranks = await riot(
     `https://${route.platform}.api.riotgames.com/lol/league/v4/entries/by-puuid/${acc.puuid}`,
@@ -108,6 +109,7 @@ async function fetchRankForRiotId(riotId, region, apiKey) {
       wins: 0,
       losses: 0,
       iconId,
+      summonerLevel,
       totalLp: 0,
     };
   }
@@ -124,6 +126,7 @@ async function fetchRankForRiotId(riotId, region, apiKey) {
     wins: solo.wins,
     losses: solo.losses,
     iconId,
+    summonerLevel,
     totalLp: toLP(tier, solo.rank, solo.leaguePoints),
   };
 }
