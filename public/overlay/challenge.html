@@ -36,8 +36,8 @@
         --accent-soft: rgba(200, 155, 60, 0.24);
         position: relative;
         display: grid;
-        grid-template-columns: minmax(306px, 306px) 116px;
-        width: 438px;
+        grid-template-columns: minmax(350px, 350px) 116px;
+        width: 482px;
         min-height: 82px;
         overflow: hidden;
         border: 1px solid rgba(200, 155, 60, 0.36);
@@ -76,7 +76,7 @@
         display: grid;
         grid-template-columns: 44px minmax(0, 1fr) 66px;
         align-items: center;
-        gap: 12px;
+        gap: 13px;
         padding: 12px 14px 10px 14px;
         opacity: 0;
         transform: translateY(110%);
@@ -141,11 +141,18 @@
       .player-name {
         overflow: hidden;
         color: #f7f1df;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 900;
         line-height: 1;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .player-tag {
+        color: rgba(245, 233, 200, 0.5);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
       }
 
       .player-rank {
@@ -162,7 +169,7 @@
       }
 
       .player-role {
-        margin-top: 7px;
+        margin-top: 6px;
         overflow: hidden;
         color: rgba(245, 233, 200, 0.56);
         font-size: 9px;
@@ -322,7 +329,8 @@
           <div class="identity">
             <div class="name-row">
               <span class="medal" id="p1-medal">-</span>
-              <span class="player-name">Sevillana</span>
+              <span class="player-name" id="p1-name">SevillanaEnjoyer</span>
+              <span class="player-tag" id="p1-tag">#CARLA</span>
             </div>
             <div class="player-rank" id="p1-rank">CARGANDO</div>
             <div class="player-role" id="p1-role">SOLOQ CHALLENGE</div>
@@ -339,7 +347,8 @@
           <div class="identity">
             <div class="name-row">
               <span class="medal" id="p2-medal">-</span>
-              <span class="player-name">CAL</span>
+              <span class="player-name" id="p2-name">CAL Destroyersit</span>
+              <span class="player-tag" id="p2-tag">#EUW</span>
             </div>
             <div class="player-rank" id="p2-rank">CARGANDO</div>
             <div class="player-role" id="p2-role">SOLOQ CHALLENGE</div>
@@ -364,21 +373,17 @@
       const refreshMs =
         Math.max(30, parseInt(params.get("refresh") || "60", 10)) * 1000;
       const cycleMs =
-        Math.max(3, parseInt(params.get("cycle") || "5", 10)) * 1000;
+        Math.max(3, parseInt(params.get("cycle") || "10", 10)) * 1000;
       const direction = params.get("direction") === "down" ? "down" : "up";
 
       const REGION = "euw";
       const PLAYERS = [
         {
           riot: "SevillanaEnjoyer#CARLA",
-          short: "Sevillana",
-          full: "SevillanaEnjoyer",
           id: "p1",
         },
         {
           riot: "CAL Destroyersit#EUW",
-          short: "CAL",
-          full: "CAL Destroyersit",
           id: "p2",
         },
       ];
@@ -396,6 +401,16 @@
         "CHALLENGER",
       ];
       const DIVS = ["IV", "III", "II", "I"];
+
+      PLAYERS.forEach((player) => {
+        const idx = player.riot.indexOf("#");
+        player.name = idx >= 0 ? player.riot.slice(0, idx) : player.riot;
+        player.tag = idx >= 0 ? player.riot.slice(idx + 1) : "";
+        player.short = player.name;
+        document.getElementById(`${player.id}-name`).textContent = player.name;
+        document.getElementById(`${player.id}-tag`).textContent =
+          player.tag ? `#${player.tag}` : "";
+      });
 
       let ddragonVersion = "15.7.1";
       let activeIndex = 0;
