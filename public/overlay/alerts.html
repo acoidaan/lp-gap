@@ -165,6 +165,7 @@
         Math.max(3, parseInt(params.get("duration") || "6", 10)) * 1000;
       const soundOn = params.get("sound") === "1";
       const startup = params.get("startup") === "1";
+      const testMode = params.get("test") === "1";
       const debugOn = params.get("debug") === "1";
       const closeGap = Math.max(0, parseInt(params.get("close") || "50", 10));
 
@@ -188,6 +189,34 @@
       let queue = [];
       let showing = false;
       let audioCtx = null;
+      let demoIndex = 0;
+
+      const DEMO_EVENTS = [
+        {
+          kind: "leader",
+          type: "Cambio de lider",
+          title: "SevillanaEnjoyer",
+          subtitle: "Ahora lidera por 24 LP sobre CAL Destroyersit",
+        },
+        {
+          kind: "up",
+          type: "LP Update",
+          title: "CAL Destroyersit +27 LP",
+          subtitle: "MASTER 42 LP - gap actual 18 LP",
+        },
+        {
+          kind: "leader",
+          type: "Rank up",
+          title: "SevillanaEnjoyer",
+          subtitle: "DIAMOND I -> MASTER",
+        },
+        {
+          kind: "down",
+          type: "Gap apretado",
+          title: "12 LP",
+          subtitle: "SevillanaEnjoyer vs CAL Destroyersit",
+        },
+      ];
 
       function setDebug(msg) {
         const el = document.getElementById("debug");
@@ -369,6 +398,7 @@
       }
 
       async function tick() {
+        if (testMode) return;
         try {
           const players = await Promise.all(PLAYERS.map(fetchRank));
           const current = { players, ts: Date.now() };
@@ -398,8 +428,20 @@
         }
       }
 
-      tick();
-      setInterval(tick, refreshMs);
+      function demoTick() {
+        const event = DEMO_EVENTS[demoIndex % DEMO_EVENTS.length];
+        demoIndex += 1;
+        enqueue([event]);
+        setDebug(`test ${demoIndex}: ${event.type}`);
+      }
+
+      if (testMode) {
+        demoTick();
+        setInterval(demoTick, durationMs + 1400);
+      } else {
+        tick();
+        setInterval(tick, refreshMs);
+      }
     </script>
   </body>
 </html>

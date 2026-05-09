@@ -969,8 +969,9 @@ function buildObsOverlayUrl() {
       20,
     );
     const sound = document.getElementById("obs-sound")?.value === "1" ? "1" : "0";
+    const test = document.getElementById("obs-test")?.value === "1" ? "1" : "0";
     return absoluteUrl(
-      `/overlay/alerts.html?refresh=${refresh}&duration=${duration}&sound=${sound}`,
+      `/overlay/alerts.html?refresh=${refresh}&duration=${duration}&sound=${sound}&test=${test}`,
     );
   }
 
@@ -985,10 +986,12 @@ function updateObsControls() {
   const cycleField = document.getElementById("obs-cycle-field");
   const durationField = document.getElementById("obs-duration-field");
   const soundField = document.getElementById("obs-sound-field");
+  const testField = document.getElementById("obs-test-field");
   if (playerField) playerField.hidden = obsType !== "solo";
   if (cycleField) cycleField.hidden = obsType !== "challenge";
   if (durationField) durationField.hidden = obsType !== "alerts";
   if (soundField) soundField.hidden = obsType !== "alerts";
+  if (testField) testField.hidden = obsType !== "alerts";
 
   document.querySelectorAll("[data-obs-type]").forEach((btn) => {
     btn.className = btn.dataset.obsType === obsType ? "active" : "";
@@ -1026,6 +1029,7 @@ function initializeStreamTools() {
       "obs-cycle",
       "obs-duration",
       "obs-sound",
+      "obs-test",
     ].forEach((id) => {
       document.getElementById(id)?.addEventListener("input", updateObsControls);
       document.getElementById(id)?.addEventListener("change", updateObsControls);
