@@ -313,10 +313,13 @@ function esc(s) {
   return d.innerHTML;
 }
 
-async function fetchRank(name, tag, reg) {
-  const res = await fetch(
-    `/api/rank?name=${encodeURIComponent(name)}&tag=${encodeURIComponent(tag)}&region=${reg}`,
-  );
+async function fetchRank(name, tag, reg, opts = {}) {
+  const url = new URL("/api/rank", location.origin);
+  url.searchParams.set("name", name);
+  url.searchParams.set("tag", tag);
+  url.searchParams.set("region", reg);
+  if (opts.fresh) url.searchParams.set("_", String(Date.now()));
+  const res = await fetch(`${url.pathname}${url.search}`);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Error");
   return data;
@@ -1074,11 +1077,385 @@ function initializeStreamTools() {
       });
     });
 
+    document.getElementById("session-reset")?.addEventListener("click", () => {
+      resetStreamSession(lastLadderPlayers);
+      addStreamEvent({
+        type: "Sesion",
+        title: "Sesion reiniciada",
+        body: "Nuevo punto de partida para LP, W/L y partidas.",
+      });
+    });
+
     streamToolsReady = true;
   }
 
   updateCommandSnippets();
   updateObsControls();
+  renderStreamSession();
+  renderEventFeed();
+}
+
+// Stream session + event feed
+
+const STREAM_SESSION_KEY = "lpgap_stream_session_v1";
+const STREAM_EVENTS_KEY = "lpgap_stream_events_v1";
+const ACTIVE_GAME_KEY = "lpgap_active_games_v1";
+const POST_GAME_SEEN_KEY = "lpgap_post_game_seen_v1";
+const STREAM_EVENT_MAX = 40;
+
+let streamSession = loadJson(STREAM_SESSION_KEY, null);
+let streamEvents = loadJson(STREAM_EVENTS_KEY, []);
+let activeGames = loadJson(ACTIVE_GAME_KEY, {});
+let postGameSeen = loadJson(POST_GAME_SEEN_KEY, {});
+
+function loadJson(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function streamTrackedPlayers(players) {
+  const wanted = new Set(CHALLENGE_PLAYERS.map((id) => id.toLowerCase()));
+  return (players || []).filter(
+    (p) => p && !p.error && p.riotId && wanted.has(p.riotId.toLowerCase()),
+  );
+}
+
+function playerTotalLp(player) {
+  return toLP(player.tier, player.division, player.lp);
+}
+
+function playerSnapshot(player) {
+  return {
+    riotId: player.riotId,
+    tier: player.tier,
+    division: player.division,
+    lp: player.lp || 0,
+    wins: player.wins || 0,
+    losses: player.losses || 0,
+    totalLp:
+      typeof player.totalLp === "number" ? player.totalLp : playerTotalLp(player),
+    puuid: player.puuid || null,
+    ts: Date.now(),
+  };
+}
+
+function ensureStreamSession() {
+  if (!streamSession || !streamSession.startedAt) {
+    streamSession = {
+      startedAt: Date.now(),
+      baselines: {},
+      current: {},
+    };
+  }
+  streamSession.baselines = streamSession.baselines || {};
+  streamSession.current = streamSession.current || {};
+  return streamSession;
+}
+
+function resetStreamSession(players = []) {
+  streamSession = {
+    startedAt: Date.now(),
+    baselines: {},
+    current: {},
+  };
+  updateStreamSessionFromPlayers(players);
+}
+
+function updateStreamSessionFromPlayers(players) {
+  const session = ensureStreamSession();
+  streamTrackedPlayers(players).forEach((player) => {
+    const snap = playerSnapshot(player);
+    if (!session.baselines[player.riotId]) session.baselines[player.riotId] = snap;
+    session.current[player.riotId] = snap;
+  });
+  saveJson(STREAM_SESSION_KEY, session);
+  renderStreamSession();
+}
+
+function updateStreamSessionPlayer(player) {
+  const session = ensureStreamSession();
+  const snap = playerSnapshot(player);
+  if (!session.baselines[player.riotId]) session.baselines[player.riotId] = snap;
+  session.current[player.riotId] = snap;
+  saveJson(STREAM_SESSION_KEY, session);
+  renderStreamSession();
+}
+
+function sessionDelta(current, base) {
+  const wins = (current.wins || 0) - (base.wins || 0);
+  const losses = (current.losses || 0) - (base.losses || 0);
+  const games = wins + losses;
+  return {
+    lp: (current.totalLp || 0) - (base.totalLp || 0),
+    wins,
+    losses,
+    games,
+    wr: games > 0 ? Math.round((wins / games) * 100) : 0,
+  };
+}
+
+function signedValue(value) {
+  return value > 0 ? `+${value}` : String(value);
+}
+
+function renderStreamSession() {
+  const grid = document.getElementById("session-grid");
+  if (!grid) return;
+
+  const session = ensureStreamSession();
+  const cards = CHALLENGE_PLAYERS.map((riotId) => {
+    const current = session.current[riotId];
+    const base = session.baselines[riotId];
+    if (!current || !base) return "";
+    const info = parseRiotId(riotId);
+    const delta = sessionDelta(current, base);
+    const lpColor =
+      delta.lp > 0
+        ? "var(--green)"
+        : delta.lp < 0
+          ? "var(--red)"
+          : "var(--dim)";
+    return `<div class="session-player">
+      <div class="session-player-head">
+        <div class="session-player-name">${esc(info.name)}</div>
+        <div class="session-player-rank">${esc(fmtRank(current))}</div>
+      </div>
+      <div class="session-metrics">
+        <div class="session-metric"><strong style="color:${lpColor}">${signedValue(delta.lp)}</strong><span>LP</span></div>
+        <div class="session-metric"><strong>${delta.games}</strong><span>Games</span></div>
+        <div class="session-metric"><strong>${delta.wins}/${delta.losses}</strong><span>W/L</span></div>
+        <div class="session-metric"><strong>${delta.wr}%</strong><span>WR</span></div>
+      </div>
+    </div>`;
+  }).filter(Boolean);
+
+  grid.innerHTML = cards.length
+    ? cards.join("")
+    : '<div class="session-empty">Cargando sesion...</div>';
+}
+
+function eventTime(ts) {
+  try {
+    return new Intl.DateTimeFormat("es-ES", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(ts));
+  } catch {
+    return "";
+  }
+}
+
+function addStreamEvent(event) {
+  const item = {
+    ts: Date.now(),
+    tone: "",
+    key: "",
+    ...event,
+  };
+  if (item.key && streamEvents.some((e) => e.key === item.key)) return;
+  streamEvents.unshift(item);
+  streamEvents = streamEvents.slice(0, STREAM_EVENT_MAX);
+  saveJson(STREAM_EVENTS_KEY, streamEvents);
+  renderEventFeed();
+}
+
+function renderEventFeed() {
+  const feed = document.getElementById("event-feed");
+  if (!feed) return;
+  if (!streamEvents.length) {
+    feed.innerHTML = '<div class="event-empty">Sin eventos todavia.</div>';
+    return;
+  }
+  feed.innerHTML = streamEvents
+    .slice(0, 12)
+    .map(
+      (event) => `<article class="event-item ${esc(event.tone || "")}">
+        <time class="event-time">${esc(eventTime(event.ts))}</time>
+        <div class="event-copy">
+          <div class="event-type">${esc(event.type || "Evento")}</div>
+          <div class="event-title">${esc(event.title || "")}</div>
+          <div class="event-body">${esc(event.body || "")}</div>
+        </div>
+      </article>`,
+    )
+    .join("");
+}
+
+function rankSummaryForEvent(player) {
+  if (!player || player.error) return "rank no disponible";
+  return fmtRank(player);
+}
+
+function findLadderPlayer(riotId) {
+  return (lastLadderPlayers || []).find((p) => p.riotId === riotId);
+}
+
+function mergeLadderPlayer(player) {
+  const idx = (lastLadderPlayers || []).findIndex((p) => p.riotId === player.riotId);
+  if (idx >= 0) lastLadderPlayers[idx] = { ...lastLadderPlayers[idx], ...player };
+}
+
+function isStreamRelevantRiotId(riotId) {
+  if (!riotId) return false;
+  const key = riotId.toLowerCase();
+  return (
+    CHALLENGE_PLAYERS.some((id) => id.toLowerCase() === key) ||
+    Boolean(twitchChannelForRiotId(riotId))
+  );
+}
+
+async function fetchLatestMatch(player, live) {
+  if (!player || !player.puuid) return null;
+  const url = new URL("/api/latest-match", location.origin);
+  url.searchParams.set("puuid", player.puuid);
+  url.searchParams.set("region", LADDER_REGION);
+  if (live && live.gameStartTime) {
+    url.searchParams.set("startedAfter", String(live.gameStartTime));
+  }
+  const res = await fetch(`${url.pathname}${url.search}`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function fetchFreshRankForRiotId(riotId) {
+  const { name, tag } = parseRiotId(riotId);
+  const rank = await fetchRank(name, tag, LADDER_REGION, { fresh: true });
+  return {
+    riotId,
+    ...rank,
+    totalLp: toLP(rank.tier, rank.division, rank.lp),
+  };
+}
+
+function postGameBody(match, lpDelta, rank) {
+  const result = match ? (match.win ? "Victoria" : "Derrota") : "Resultado pendiente";
+  const champ = match && match.championName ? match.championName : "partida";
+  const kda =
+    match && typeof match.kills === "number"
+      ? `${match.kills}/${match.deaths}/${match.assists} (${match.kda} KDA)`
+      : "KDA no disponible";
+  return `${result} con ${champ} - ${kda} - ${signedValue(lpDelta)} LP - ${rankSummaryForEvent(rank)}`;
+}
+
+async function buildPostGameRecap(riotId, before) {
+  const basePlayer = findLadderPlayer(riotId) || before.rank;
+  if (!basePlayer) return;
+
+  const match = await fetchLatestMatch(basePlayer, before.live);
+  const seenKey = match && match.matchId ? `match:${riotId}:${match.matchId}` : "";
+  if (seenKey && postGameSeen[seenKey]) return;
+
+  const after = await fetchFreshRankForRiotId(riotId);
+  mergeLadderPlayer(after);
+  updateStreamSessionPlayer(after);
+
+  const beforeTotal =
+    before.rank && typeof before.rank.totalLp === "number"
+      ? before.rank.totalLp
+      : playerTotalLp(before.rank || after);
+  const lpDelta = after.totalLp - beforeTotal;
+  const name = parseRiotId(riotId).name;
+  const tone =
+    match && match.win ? "positive" : match && match.win === false ? "negative" : "";
+
+  addStreamEvent({
+    key: seenKey || `postgame:${riotId}:${Date.now()}`,
+    type: "Post-game",
+    title: name,
+    body: postGameBody(match, lpDelta, after),
+    tone,
+  });
+
+  if (seenKey) {
+    postGameSeen[seenKey] = Date.now();
+    saveJson(POST_GAME_SEEN_KEY, postGameSeen);
+  }
+}
+
+function handleGameStart(riotId, live) {
+  if (activeGames[riotId]) return;
+  const player = findLadderPlayer(riotId);
+  const rank = player ? playerSnapshot(player) : null;
+  activeGames[riotId] = {
+    live,
+    rank,
+    ts: Date.now(),
+  };
+  saveJson(ACTIVE_GAME_KEY, activeGames);
+
+  const champ = championById && championById[live.championId];
+  addStreamEvent({
+    key: `game-start:${riotId}:${live.gameStartTime || Date.now()}`,
+    type: "Partida",
+    title: `${parseRiotId(riotId).name} entra en partida`,
+    body: champ ? `Jugando ${champ.name}` : "En SoloQ",
+  });
+}
+
+function handleGameEnd(riotId) {
+  const before = activeGames[riotId];
+  if (!before) return;
+  delete activeGames[riotId];
+  saveJson(ACTIVE_GAME_KEY, activeGames);
+
+  addStreamEvent({
+    key: `game-end:${riotId}:${Date.now()}`,
+    type: "Partida",
+    title: `${parseRiotId(riotId).name} termina partida`,
+    body: "Esperando recap de Riot...",
+  });
+
+  setTimeout(() => {
+    buildPostGameRecap(riotId, before).catch((e) => {
+      addStreamEvent({
+        type: "Post-game",
+        title: parseRiotId(riotId).name,
+        body: `No se pudo cargar el recap: ${e.message}`,
+        tone: "negative",
+      });
+    });
+  }, 75_000);
+}
+
+function processLiveTransitions(prevInGame, nextInGame, prevTwitch, nextTwitch) {
+  Object.entries(nextTwitch || {}).forEach(([channel, stream]) => {
+    if (prevTwitch && prevTwitch[channel]) return;
+    addStreamEvent({
+      key: `twitch-live:${channel}:${stream.startedAt || Date.now()}`,
+      type: "Twitch",
+      title: `${stream.userName || channel} esta en directo`,
+      body: stream.title || "Directo en Twitch",
+      tone: "live",
+    });
+  });
+
+  Object.entries(nextInGame || {}).forEach(([riotId, live]) => {
+    if (!isStreamRelevantRiotId(riotId)) return;
+    if (prevInGame && prevInGame[riotId]) return;
+    handleGameStart(riotId, live);
+  });
+
+  Object.keys(prevInGame || {}).forEach((riotId) => {
+    if (!isStreamRelevantRiotId(riotId)) return;
+    if (nextInGame && nextInGame[riotId]) return;
+    handleGameEnd(riotId);
+  });
+
+  Object.keys(activeGames || {}).forEach((riotId) => {
+    if (!isStreamRelevantRiotId(riotId)) return;
+    if (nextInGame && nextInGame[riotId]) return;
+    handleGameEnd(riotId);
+  });
 }
 
 // Challenge
@@ -1665,6 +2042,7 @@ async function refreshLadder(force = false) {
     const cached = loadLadderCache();
     if (cached) {
       renderLadder(cached.players, cached.cutoffs);
+      updateStreamSessionFromPlayers(cached.players);
       ladderLastUpdated = cached.timestamp;
       updateLadderTime();
       startLivePolling(cached.players);
@@ -1694,6 +2072,7 @@ async function refreshLadder(force = false) {
   // el LP actual (ultimo punto de la linea).
   appendLadderHistory(players);
   renderLadder(players, cutoffs);
+  updateStreamSessionFromPlayers(players);
 
   // Cacheamos siempre, aunque algun jugador venga con error. El TTL de
   // 5 min limita lo "rancia" que puede quedar la informacion, y a cambio
@@ -1841,6 +2220,8 @@ function renderLiveNowPanel(streams) {
 
 async function refreshLiveStatus() {
   if (!lastLadderPlayers.length) return;
+  const prevTwitch = liveStatus.twitch || {};
+  const prevInGame = liveStatus.inGame || {};
 
   const [twitchStreams, ...inGameResults] = await Promise.all([
     fetchTwitchLive(),
@@ -1857,6 +2238,7 @@ async function refreshLiveStatus() {
   liveStatus.inGame = newInGame;
 
   await loadChampionData();
+  processLiveTransitions(prevInGame, newInGame, prevTwitch, twitchStreams);
   applyLiveIndicators();
 }
 
