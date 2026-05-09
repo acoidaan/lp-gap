@@ -29,7 +29,16 @@
             Comparar
           </button>
           <button type="button" data-view="challenge">SoloQ Challenge</button>
+          <button type="button" data-view="stream">Stream</button>
         </nav>
+
+        <section class="live-now-panel" id="live-now-panel" hidden>
+          <div class="live-now-head">
+            <span>En directo ahora</span>
+            <small id="live-now-count">0 directos</small>
+          </div>
+          <div class="live-now-list" id="live-now-list"></div>
+        </section>
 
         <section class="app-view" id="compare-view">
           <div class="form">
@@ -64,6 +73,97 @@
             <span id="load-msg">Buscando invocadores...</span>
           </div>
           <div id="results" class="results" hidden></div>
+        </section>
+
+        <section class="app-view stream-view" id="stream-view" hidden>
+          <div class="stream-card">
+            <div class="stream-head">
+              <div>
+                <div class="challenge-kicker">OBS</div>
+                <h2>Generador de overlays</h2>
+              </div>
+            </div>
+
+            <div class="obs-generator">
+              <div class="obs-tabs" id="obs-tabs" aria-label="Tipo de overlay">
+                <button class="active" type="button" data-obs-type="solo">
+                  Jugador
+                </button>
+                <button type="button" data-obs-type="challenge">Challenge</button>
+                <button type="button" data-obs-type="alerts">Alertas</button>
+              </div>
+
+              <div class="stream-field-grid">
+                <div class="field" id="obs-player-field">
+                  <label>Jugador</label>
+                  <select id="obs-player"></select>
+                </div>
+                <div class="field">
+                  <label>Refresh</label>
+                  <input id="obs-refresh" type="number" min="30" max="300" value="60" />
+                </div>
+                <div class="field" id="obs-cycle-field">
+                  <label>Rotacion</label>
+                  <input id="obs-cycle" type="number" min="3" max="60" value="10" />
+                </div>
+                <div class="field" id="obs-duration-field" hidden>
+                  <label>Duracion</label>
+                  <input id="obs-duration" type="number" min="3" max="20" value="6" />
+                </div>
+                <div class="field" id="obs-sound-field" hidden>
+                  <label>Sonido</label>
+                  <select id="obs-sound">
+                    <option value="0">Off</option>
+                    <option value="1">On</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="copy-row">
+                <input id="obs-url" readonly />
+                <button class="share-btn share-btn-primary" type="button" data-copy-target="obs-url">
+                  Copiar
+                </button>
+              </div>
+              <div class="share-status" id="stream-copy-status" aria-live="polite"></div>
+            </div>
+          </div>
+
+          <div class="stream-card">
+            <div class="stream-head">
+              <div>
+                <div class="challenge-kicker">Nightbot</div>
+                <h2>Comandos de chat</h2>
+              </div>
+            </div>
+            <div class="command-list" id="command-list">
+              <div class="command-item">
+                <strong>!gap</strong>
+                <input readonly data-command-path="/api/command-gap" />
+                <button class="share-btn" type="button" data-command-copy>Copiar</button>
+              </div>
+              <div class="command-item">
+                <strong>!reto</strong>
+                <input readonly data-command-path="/api/command-reto" />
+                <button class="share-btn" type="button" data-command-copy>Copiar</button>
+              </div>
+              <div class="command-item">
+                <strong>!lpsev</strong>
+                <input readonly data-command-path="/api/command-lp?riot=SevillanaEnjoyer%23CARLA" />
+                <button class="share-btn" type="button" data-command-copy>Copiar</button>
+              </div>
+              <div class="command-item">
+                <strong>!lpcal</strong>
+                <input readonly data-command-path="/api/command-lp?riot=CAL%20Destroyersit%23EUW" />
+                <button class="share-btn" type="button" data-command-copy>Copiar</button>
+              </div>
+              <div class="command-item">
+                <strong>!directos</strong>
+                <input readonly data-command-path="/api/command-live" />
+                <button class="share-btn" type="button" data-command-copy>Copiar</button>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section class="app-view challenge-view" id="challenge-view" hidden>

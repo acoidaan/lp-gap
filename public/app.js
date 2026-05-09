@@ -131,6 +131,7 @@ function setActiveView(view) {
     startCountdown();
   } else {
     stopCountdown();
+    if (view === "stream") initializeStreamTools();
     if (typeof refreshLiveStatus === "function" && lastLadderPlayers.length)
       refreshLiveStatus();
   }
@@ -900,6 +901,169 @@ ${buildPlayerCard(p2Id, r2)}
   setLoading(false);
 }
 
+// Stream tools
+
+let streamToolsReady = false;
+let obsType = "solo";
+let streamCopyTimer = null;
+
+function absoluteUrl(path) {
+  return new URL(path, location.origin).toString();
+}
+
+function uniqueRiotIds(ids) {
+  const seen = new Set();
+  return ids.filter((id) => {
+    const key = id.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function streamToolPlayers() {
+  return uniqueRiotIds([...CHALLENGE_PLAYERS, ...LADDER_PLAYERS]);
+}
+
+function setStreamCopyStatus(msg) {
+  const el = document.getElementById("stream-copy-status");
+  if (!el) return;
+  clearTimeout(streamCopyTimer);
+  el.textContent = msg;
+  if (msg) {
+    streamCopyTimer = setTimeout(() => {
+      el.textContent = "";
+    }, 2600);
+  }
+}
+
+function clampNumber(value, fallback, min, max) {
+  const n = Number.parseInt(value, 10);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(max, Math.max(min, n));
+}
+
+function buildObsOverlayUrl() {
+  const refresh = clampNumber(
+    document.getElementById("obs-refresh")?.value,
+    60,
+    30,
+    300,
+  );
+
+  if (obsType === "challenge") {
+    const cycle = clampNumber(
+      document.getElementById("obs-cycle")?.value,
+      10,
+      3,
+      60,
+    );
+    return absoluteUrl(`/overlay/challenge.html?refresh=${refresh}&cycle=${cycle}`);
+  }
+
+  if (obsType === "alerts") {
+    const duration = clampNumber(
+      document.getElementById("obs-duration")?.value,
+      6,
+      3,
+      20,
+    );
+    const sound = document.getElementById("obs-sound")?.value === "1" ? "1" : "0";
+    return absoluteUrl(
+      `/overlay/alerts.html?refresh=${refresh}&duration=${duration}&sound=${sound}`,
+    );
+  }
+
+  const player = document.getElementById("obs-player")?.value || CHALLENGE_PLAYERS[0];
+  return absoluteUrl(
+    `/overlay/solo.html?riot=${encodeURIComponent(player)}&region=${CHALLENGE_REGION}&refresh=${refresh}`,
+  );
+}
+
+function updateObsControls() {
+  const playerField = document.getElementById("obs-player-field");
+  const cycleField = document.getElementById("obs-cycle-field");
+  const durationField = document.getElementById("obs-duration-field");
+  const soundField = document.getElementById("obs-sound-field");
+  if (playerField) playerField.hidden = obsType !== "solo";
+  if (cycleField) cycleField.hidden = obsType !== "challenge";
+  if (durationField) durationField.hidden = obsType !== "alerts";
+  if (soundField) soundField.hidden = obsType !== "alerts";
+
+  document.querySelectorAll("[data-obs-type]").forEach((btn) => {
+    btn.className = btn.dataset.obsType === obsType ? "active" : "";
+  });
+
+  const out = document.getElementById("obs-url");
+  if (out) out.value = buildObsOverlayUrl();
+}
+
+function updateCommandSnippets() {
+  document.querySelectorAll("[data-command-path]").forEach((input) => {
+    input.value = `$(urlfetch ${absoluteUrl(input.dataset.commandPath)})`;
+  });
+}
+
+function initializeStreamTools() {
+  const playerSelect = document.getElementById("obs-player");
+  if (!playerSelect) return;
+
+  if (!streamToolsReady) {
+    playerSelect.innerHTML = streamToolPlayers()
+      .map((riotId) => `<option value="${esc(riotId)}">${esc(riotId)}</option>`)
+      .join("");
+
+    document.querySelectorAll("[data-obs-type]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        obsType = btn.dataset.obsType || "solo";
+        updateObsControls();
+      });
+    });
+
+    [
+      "obs-player",
+      "obs-refresh",
+      "obs-cycle",
+      "obs-duration",
+      "obs-sound",
+    ].forEach((id) => {
+      document.getElementById(id)?.addEventListener("input", updateObsControls);
+      document.getElementById(id)?.addEventListener("change", updateObsControls);
+    });
+
+    document.querySelectorAll("[data-copy-target]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const target = document.getElementById(btn.dataset.copyTarget);
+        if (!target) return;
+        try {
+          await copyText(target.value);
+          setStreamCopyStatus("Copiado");
+        } catch {
+          setStreamCopyStatus("No se pudo copiar");
+        }
+      });
+    });
+
+    document.querySelectorAll("[data-command-copy]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const input = btn.parentElement?.querySelector("input");
+        if (!input) return;
+        try {
+          await copyText(input.value);
+          setStreamCopyStatus("Comando copiado");
+        } catch {
+          setStreamCopyStatus("No se pudo copiar");
+        }
+      });
+    });
+
+    streamToolsReady = true;
+  }
+
+  updateCommandSnippets();
+  updateObsControls();
+}
+
 // Challenge
 
 const CHALLENGE_PLAYERS = ["SevillanaEnjoyer#CARLA", "CAL Destroyersit#EUW"];
@@ -1581,9 +1745,13 @@ async function fetchLiveForPlayer(p) {
 }
 
 async function fetchTwitchLive() {
-  const channels = LADDER_PLAYERS.map((rid) => twitchChannelForRiotId(rid))
-    .filter(Boolean)
-    .map((c) => c.toLowerCase());
+  const channels = [
+    ...new Set(
+      LADDER_PLAYERS.map((rid) => twitchChannelForRiotId(rid))
+        .filter(Boolean)
+        .map((c) => c.toLowerCase()),
+    ),
+  ];
   if (channels.length === 0) return {};
   try {
     const res = await fetch(
@@ -1597,6 +1765,63 @@ async function fetchTwitchLive() {
   }
 }
 
+function formatViewerCount(count) {
+  const n = Number(count) || 0;
+  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
+  return String(n);
+}
+
+function twitchThumbnailUrl(stream) {
+  const raw = stream && stream.thumbnailUrl;
+  if (!raw) return "";
+  return raw.replace("{width}", "320").replace("{height}", "180");
+}
+
+function renderLiveNowPanel(streams) {
+  const panel = document.getElementById("live-now-panel");
+  const list = document.getElementById("live-now-list");
+  const count = document.getElementById("live-now-count");
+  if (!panel || !list || !count) return;
+
+  const entries = Object.entries(streams || {}).sort(
+    (a, b) => (b[1].viewerCount || 0) - (a[1].viewerCount || 0),
+  );
+
+  if (!entries.length) {
+    panel.hidden = true;
+    list.innerHTML = "";
+    count.textContent = "0 directos";
+    return;
+  }
+
+  panel.hidden = false;
+  count.textContent = entries.length === 1 ? "1 directo" : `${entries.length} directos`;
+  list.innerHTML = entries
+    .map(([channel, stream]) => {
+      const user = stream.userName || channel;
+      const url = `https://www.twitch.tv/${encodeURIComponent(channel)}`;
+      const thumb = twitchThumbnailUrl(stream);
+      const meta = [
+        stream.gameName || "Twitch",
+        `${formatViewerCount(stream.viewerCount)} viewers`,
+      ].join(" - ");
+      return `<a class="live-now-item" href="${url}" target="_blank" rel="noopener">
+        <div class="live-thumb">${
+          thumb ? `<img src="${esc(thumb)}" alt="${esc(user)}" />` : ""
+        }</div>
+        <div class="live-copy">
+          <div class="live-channel">
+            <span class="live-badge">LIVE</span>
+            <strong>${esc(user)}</strong>
+          </div>
+          <div class="live-title">${esc(stream.title || "Directo en Twitch")}</div>
+          <div class="live-meta">${esc(meta)}</div>
+        </div>
+      </a>`;
+    })
+    .join("");
+}
+
 async function refreshLiveStatus() {
   if (!lastLadderPlayers.length) return;
 
@@ -1606,6 +1831,7 @@ async function refreshLiveStatus() {
   ]);
 
   liveStatus.twitch = twitchStreams;
+  renderLiveNowPanel(twitchStreams);
   const newInGame = {};
   lastLadderPlayers.forEach((p, i) => {
     const r = inGameResults[i];

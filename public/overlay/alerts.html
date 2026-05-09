@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LP GAP - Alerts Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@600;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        overflow: hidden;
+        background: transparent;
+        color: #f7f1df;
+        font-family: "Inter", system-ui, sans-serif;
+      }
+
+      body {
+        padding: 22px;
+      }
+
+      .alert {
+        --accent: #f0b232;
+        width: min(560px, calc(100vw - 44px));
+        min-height: 112px;
+        padding: 18px 22px;
+        border: 1px solid rgba(240, 178, 50, 0.42);
+        border-radius: 12px;
+        background:
+          linear-gradient(180deg, rgba(20, 22, 34, 0.96), rgba(8, 10, 17, 0.96)),
+          rgba(8, 10, 17, 0.96);
+        box-shadow:
+          0 14px 34px rgba(0, 0, 0, 0.55),
+          0 0 34px rgba(240, 178, 50, 0.24),
+          inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        overflow: hidden;
+        position: relative;
+        opacity: 0;
+        transform: translateY(28px) scale(0.96);
+        transition:
+          opacity 220ms ease,
+          transform 420ms cubic-bezier(0.18, 0.9, 0.2, 1);
+      }
+
+      .alert.show {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+
+      .alert::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 3px;
+        background: linear-gradient(90deg, #d177ff, var(--accent), #62d68a);
+      }
+
+      .type {
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+      }
+
+      .title {
+        margin-top: 8px;
+        color: #fff8df;
+        font-size: clamp(25px, 4vw, 38px);
+        font-weight: 900;
+        line-height: 1;
+        text-shadow: 0 0 18px rgba(240, 178, 50, 0.25);
+      }
+
+      .subtitle {
+        margin-top: 10px;
+        color: rgba(247, 241, 223, 0.64);
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        line-height: 1.25;
+        text-transform: uppercase;
+      }
+
+      .meter {
+        position: absolute;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        height: 3px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .meter span {
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--accent);
+        transform-origin: left center;
+      }
+
+      .alert.show .meter span {
+        animation: drain var(--duration, 6s) linear forwards;
+      }
+
+      .alert[data-kind="down"] {
+        --accent: #ff8197;
+      }
+
+      .alert[data-kind="up"] {
+        --accent: #6ce8a3;
+      }
+
+      .alert[data-kind="leader"] {
+        --accent: #f0b232;
+      }
+
+      .debug {
+        position: fixed;
+        left: 8px;
+        bottom: 8px;
+        max-width: 460px;
+        padding: 8px 10px;
+        background: rgba(0, 0, 0, 0.62);
+        color: rgba(255, 255, 255, 0.72);
+        border-radius: 6px;
+        font-size: 11px;
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      @keyframes drain {
+        to {
+          transform: scaleX(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <section class="alert" id="alert" hidden>
+      <div class="type" id="alert-type">LP GAP</div>
+      <div class="title" id="alert-title">Alert</div>
+      <div class="subtitle" id="alert-subtitle"></div>
+      <div class="meter"><span></span></div>
+    </section>
+    <div class="debug" id="debug" hidden></div>
+
+    <script>
+      const params = new URLSearchParams(location.search);
+      const refreshMs =
+        Math.max(30, parseInt(params.get("refresh") || "60", 10)) * 1000;
+      const durationMs =
+        Math.max(3, parseInt(params.get("duration") || "6", 10)) * 1000;
+      const soundOn = params.get("sound") === "1";
+      const startup = params.get("startup") === "1";
+      const debugOn = params.get("debug") === "1";
+      const closeGap = Math.max(0, parseInt(params.get("close") || "50", 10));
+
+      const REGION = "euw";
+      const PLAYERS = ["SevillanaEnjoyer#CARLA", "CAL Destroyersit#EUW"];
+      const TIERS = [
+        "IRON",
+        "BRONZE",
+        "SILVER",
+        "GOLD",
+        "PLATINUM",
+        "EMERALD",
+        "DIAMOND",
+        "MASTER",
+        "GRANDMASTER",
+        "CHALLENGER",
+      ];
+      const DIVS = ["IV", "III", "II", "I"];
+
+      let previous = null;
+      let queue = [];
+      let showing = false;
+      let audioCtx = null;
+
+      function setDebug(msg) {
+        const el = document.getElementById("debug");
+        if (!debugOn || !el) return;
+        el.hidden = false;
+        el.textContent = msg;
+      }
+
+      function parseRiotId(riotId) {
+        const idx = riotId.indexOf("#");
+        return {
+          name: idx >= 0 ? riotId.slice(0, idx) : riotId,
+          tag: idx >= 0 ? riotId.slice(idx + 1) : "",
+        };
+      }
+
+      function totalLp(tier, division, lp) {
+        const i = TIERS.indexOf((tier || "").toUpperCase());
+        if (i < 0) return 0;
+        if (i >= 7) return 2800 + (lp || 0);
+        const d = DIVS.indexOf((division || "").toUpperCase());
+        return i * 400 + Math.max(d, 0) * 100 + (lp || 0);
+      }
+
+      function rankLabel(player) {
+        if (!player || player.tier === "Unranked") return "UNRANKED";
+        const tier = (player.tier || "").toUpperCase();
+        if (TIERS.indexOf(tier) >= 7) return `${tier} ${player.lp || 0} LP`;
+        return `${tier} ${player.division || ""} ${player.lp || 0} LP`.trim();
+      }
+
+      function rankStepLabel(player) {
+        if (!player || player.tier === "Unranked") return "UNRANKED";
+        const tier = (player.tier || "").toUpperCase();
+        if (TIERS.indexOf(tier) >= 7) return tier;
+        return `${tier} ${player.division || ""}`.trim();
+      }
+
+      async function fetchRank(riotId) {
+        const id = parseRiotId(riotId);
+        const res = await fetch(
+          `/api/rank?name=${encodeURIComponent(id.name)}&tag=${encodeURIComponent(id.tag)}&region=${REGION}`,
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "rank error");
+        return {
+          riotId,
+          name: id.name,
+          tag: id.tag,
+          ...data,
+          totalLp: totalLp(data.tier, data.division, data.lp),
+        };
+      }
+
+      function gapInfo(players) {
+        const [a, b] = players;
+        const diff = Math.abs(a.totalLp - b.totalLp);
+        const leader = a.totalLp >= b.totalLp ? a : b;
+        const trailer = leader === a ? b : a;
+        return { diff, leader, trailer };
+      }
+
+      function eventForLpChange(now, before, gap) {
+        const delta = now.totalLp - before.totalLp;
+        if (delta === 0) return null;
+        const sign = delta > 0 ? "+" : "";
+        return {
+          kind: delta > 0 ? "up" : "down",
+          type: "LP Update",
+          title: `${now.name} ${sign}${delta} LP`,
+          subtitle: `${rankLabel(now)} - gap actual ${gap} LP`,
+        };
+      }
+
+      function buildEvents(current, beforeState) {
+        const events = [];
+        const beforeGap = gapInfo(beforeState.players);
+        const afterGap = gapInfo(current.players);
+
+        if (
+          afterGap.diff > 0 &&
+          beforeGap.leader.riotId !== afterGap.leader.riotId
+        ) {
+          events.push({
+            kind: "leader",
+            type: "Cambio de lider",
+            title: afterGap.leader.name,
+            subtitle: `Ahora lidera por ${afterGap.diff} LP sobre ${afterGap.trailer.name}`,
+          });
+        }
+
+        current.players.forEach((player, i) => {
+          const before = beforeState.players[i];
+          const beforeRank = rankStepLabel(before);
+          const afterRank = rankStepLabel(player);
+          if (beforeRank !== afterRank && player.totalLp > before.totalLp) {
+            events.push({
+              kind: "leader",
+              type: "Rank up",
+              title: player.name,
+              subtitle: `${beforeRank} -> ${afterRank}`,
+            });
+          }
+        });
+
+        current.players.forEach((player, i) => {
+          const lpEvent = eventForLpChange(player, beforeState.players[i], afterGap.diff);
+          if (lpEvent) events.push(lpEvent);
+        });
+
+        if (
+          closeGap > 0 &&
+          beforeGap.diff >= closeGap &&
+          afterGap.diff < closeGap
+        ) {
+          events.push({
+            kind: "down",
+            type: "Gap apretado",
+            title: `${afterGap.diff} LP`,
+            subtitle: `${afterGap.leader.name} vs ${afterGap.trailer.name}`,
+          });
+        }
+
+        return events;
+      }
+
+      function playSound() {
+        if (!soundOn) return;
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          audioCtx = audioCtx || new AudioContext();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = 740;
+          gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.22);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.24);
+        } catch {}
+      }
+
+      function enqueue(events) {
+        queue.push(...events);
+        if (!showing) showNext();
+      }
+
+      function showNext() {
+        const event = queue.shift();
+        if (!event) {
+          showing = false;
+          return;
+        }
+        showing = true;
+
+        const alert = document.getElementById("alert");
+        alert.dataset.kind = event.kind || "leader";
+        alert.style.setProperty("--duration", `${durationMs}ms`);
+        document.getElementById("alert-type").textContent = event.type;
+        document.getElementById("alert-title").textContent = event.title;
+        document.getElementById("alert-subtitle").textContent = event.subtitle;
+
+        alert.hidden = false;
+        alert.classList.remove("show");
+        void alert.offsetWidth;
+        alert.classList.add("show");
+        playSound();
+
+        setTimeout(() => {
+          alert.classList.remove("show");
+          setTimeout(() => {
+            alert.hidden = true;
+            showNext();
+          }, 260);
+        }, durationMs);
+      }
+
+      async function tick() {
+        try {
+          const players = await Promise.all(PLAYERS.map(fetchRank));
+          const current = { players, ts: Date.now() };
+          setDebug(
+            `ok ${new Date(current.ts).toLocaleTimeString()} gap=${gapInfo(players).diff}`,
+          );
+
+          if (!previous) {
+            previous = current;
+            if (startup) {
+              enqueue([
+                {
+                  kind: "leader",
+                  type: "LP GAP",
+                  title: "Alertas listas",
+                  subtitle: `${players[0].name} vs ${players[1].name}`,
+                },
+              ]);
+            }
+            return;
+          }
+
+          enqueue(buildEvents(current, previous));
+          previous = current;
+        } catch (e) {
+          setDebug(`error: ${e.message}`);
+        }
+      }
+
+      tick();
+      setInterval(tick, refreshMs);
+    </script>
+  </body>
+</html>

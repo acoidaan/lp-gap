@@ -28,6 +28,18 @@ Vercel Cron ejecuta `/api/challenge-snapshot` a diario a las 07:00 UTC.
 El watcher de Twitch se configura con cron externo cada 15 minutos; ver
 `docs/cronjobs.md`.
 
+## Stream
+
+La pestana `Stream` genera URLs para OBS y comandos listos para Nightbot:
+
+- Overlay jugador: `/overlay/solo.html?riot=Nombre%23Tag&region=euw&refresh=60`
+- Overlay challenge: `/overlay/challenge.html?refresh=60&cycle=10`
+- Overlay alertas: `/overlay/alerts.html?refresh=60&duration=6&sound=0`
+- Nightbot: `$(urlfetch https://TU_DOMINIO/api/command-gap)`,
+  `$(urlfetch https://TU_DOMINIO/api/command-reto)`,
+  `$(urlfetch https://TU_DOMINIO/api/command-lp?riot=Nombre%23Tag)` y
+  `$(urlfetch https://TU_DOMINIO/api/command-live)`.
+
 ## Seguridad
 
 - No subas `.env`, `.env.local` ni cadenas de conexion reales al repositorio.
