@@ -991,9 +991,15 @@ function buildObsOverlayUrl() {
     );
   }
 
+  const cycle = clampNumber(
+    document.getElementById("obs-cycle")?.value,
+    8,
+    3,
+    60,
+  );
   const player = document.getElementById("obs-player")?.value || CHALLENGE_PLAYERS[0];
   return absoluteUrl(
-    `/overlay/solo.html?riot=${encodeURIComponent(player)}&region=${CHALLENGE_REGION}&refresh=${refresh}`,
+    `/overlay/solo.html?riot=${encodeURIComponent(player)}&region=${CHALLENGE_REGION}&refresh=${refresh}&cycle=${cycle}`,
   );
 }
 
@@ -1004,7 +1010,7 @@ function updateObsControls() {
   const soundField = document.getElementById("obs-sound-field");
   const testField = document.getElementById("obs-test-field");
   if (playerField) playerField.hidden = obsType !== "solo";
-  if (cycleField) cycleField.hidden = obsType !== "challenge";
+  if (cycleField) cycleField.hidden = obsType === "alerts";
   if (durationField) durationField.hidden = obsType !== "alerts";
   if (soundField) soundField.hidden = obsType !== "alerts";
   if (testField) testField.hidden = obsType !== "alerts";
