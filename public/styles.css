@@ -429,8 +429,7 @@ select:focus {
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.session-empty,
-.event-empty {
+.session-empty {
   grid-column: 1 / -1;
   color: var(--dim);
   background: var(--bg);
@@ -440,61 +439,6 @@ select:focus {
   text-align: center;
   font-size: 12px;
   font-weight: 700;
-}
-.event-feed {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.event-item {
-  display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
-  gap: 12px;
-  align-items: start;
-  padding: 12px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-}
-.event-item.positive {
-  border-color: rgba(73, 178, 108, 0.5);
-}
-.event-item.negative {
-  border-color: rgba(232, 93, 117, 0.5);
-}
-.event-item.live {
-  border-color: rgba(145, 70, 255, 0.55);
-}
-.event-time {
-  color: var(--faint);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.event-copy {
-  min-width: 0;
-}
-.event-type {
-  color: var(--gold);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-.event-title {
-  margin-top: 4px;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.2;
-}
-.event-body {
-  margin-top: 5px;
-  color: var(--dim);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.35;
 }
 
 body.view-challenge .sidebar {
@@ -1772,8 +1716,7 @@ input:focus {
   .stream-field-grid,
   .copy-row,
   .command-item,
-  .session-grid,
-  .event-item {
+  .session-grid {
     grid-template-columns: 1fr;
   }
   .obs-tabs {

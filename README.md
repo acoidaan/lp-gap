@@ -44,10 +44,9 @@ La pestana `Stream` genera URLs para OBS y comandos listos para Nightbot:
   `$(urlfetch https://TU_DOMINIO/api/command-lp?riot=Nombre%23Tag)` y
   `$(urlfetch https://TU_DOMINIO/api/command-live)`.
 
-La pestana tambien muestra la sesion actual del reto y un feed local de eventos.
-Cuando un jugador sale de partida, la web espera unos segundos y consulta
-`/api/latest-match` para anadir un recap con resultado, campeon, KDA, LP y
-nuevo rango.
+La pestana tambien muestra la sesion actual del reto. Cuando un jugador sale de
+partida, la web espera unos segundos y consulta `/api/latest-match` para tener
+disponible un recap con resultado, campeon, KDA, LP y nuevo rango.
 
 ## Seguridad
 

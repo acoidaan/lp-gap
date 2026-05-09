@@ -1079,11 +1079,6 @@ function initializeStreamTools() {
 
     document.getElementById("session-reset")?.addEventListener("click", () => {
       resetStreamSession(lastLadderPlayers);
-      addStreamEvent({
-        type: "Sesion",
-        title: "Sesion reiniciada",
-        body: "Nuevo punto de partida para LP, W/L y partidas.",
-      });
     });
 
     streamToolsReady = true;
@@ -1092,19 +1087,15 @@ function initializeStreamTools() {
   updateCommandSnippets();
   updateObsControls();
   renderStreamSession();
-  renderEventFeed();
 }
 
-// Stream session + event feed
+// Stream session + post-game recaps
 
 const STREAM_SESSION_KEY = "lpgap_stream_session_v1";
-const STREAM_EVENTS_KEY = "lpgap_stream_events_v1";
 const ACTIVE_GAME_KEY = "lpgap_active_games_v1";
 const POST_GAME_SEEN_KEY = "lpgap_post_game_seen_v1";
-const STREAM_EVENT_MAX = 40;
 
 let streamSession = loadJson(STREAM_SESSION_KEY, null);
-let streamEvents = loadJson(STREAM_EVENTS_KEY, []);
 let activeGames = loadJson(ACTIVE_GAME_KEY, {});
 let postGameSeen = loadJson(POST_GAME_SEEN_KEY, {});
 
@@ -1244,53 +1235,6 @@ function renderStreamSession() {
     : '<div class="session-empty">Cargando sesion...</div>';
 }
 
-function eventTime(ts) {
-  try {
-    return new Intl.DateTimeFormat("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(ts));
-  } catch {
-    return "";
-  }
-}
-
-function addStreamEvent(event) {
-  const item = {
-    ts: Date.now(),
-    tone: "",
-    key: "",
-    ...event,
-  };
-  if (item.key && streamEvents.some((e) => e.key === item.key)) return;
-  streamEvents.unshift(item);
-  streamEvents = streamEvents.slice(0, STREAM_EVENT_MAX);
-  saveJson(STREAM_EVENTS_KEY, streamEvents);
-  renderEventFeed();
-}
-
-function renderEventFeed() {
-  const feed = document.getElementById("event-feed");
-  if (!feed) return;
-  if (!streamEvents.length) {
-    feed.innerHTML = '<div class="event-empty">Sin eventos todavia.</div>';
-    return;
-  }
-  feed.innerHTML = streamEvents
-    .slice(0, 12)
-    .map(
-      (event) => `<article class="event-item ${esc(event.tone || "")}">
-        <time class="event-time">${esc(eventTime(event.ts))}</time>
-        <div class="event-copy">
-          <div class="event-type">${esc(event.type || "Evento")}</div>
-          <div class="event-title">${esc(event.title || "")}</div>
-          <div class="event-body">${esc(event.body || "")}</div>
-        </div>
-      </article>`,
-    )
-    .join("");
-}
-
 function rankSummaryForEvent(player) {
   if (!player || player.error) return "rank no disponible";
   return fmtRank(player);
@@ -1364,17 +1308,17 @@ async function buildPostGameRecap(riotId, before) {
       ? before.rank.totalLp
       : playerTotalLp(before.rank || after);
   const lpDelta = after.totalLp - beforeTotal;
-  const name = parseRiotId(riotId).name;
-  const tone =
-    match && match.win ? "positive" : match && match.win === false ? "negative" : "";
-
-  addStreamEvent({
-    key: seenKey || `postgame:${riotId}:${Date.now()}`,
-    type: "Post-game",
-    title: name,
-    body: postGameBody(match, lpDelta, after),
-    tone,
-  });
+  window.dispatchEvent(
+    new CustomEvent("lpgap:postgame", {
+      detail: {
+        riotId,
+        match,
+        lpDelta,
+        rank: after,
+        text: postGameBody(match, lpDelta, after),
+      },
+    }),
+  );
 
   if (seenKey) {
     postGameSeen[seenKey] = Date.now();
@@ -1394,12 +1338,14 @@ function handleGameStart(riotId, live) {
   saveJson(ACTIVE_GAME_KEY, activeGames);
 
   const champ = championById && championById[live.championId];
-  addStreamEvent({
-    key: `game-start:${riotId}:${live.gameStartTime || Date.now()}`,
-    type: "Partida",
-    title: `${parseRiotId(riotId).name} entra en partida`,
-    body: champ ? `Jugando ${champ.name}` : "En SoloQ",
-  });
+  window.dispatchEvent(
+    new CustomEvent("lpgap:game-start", {
+      detail: {
+        riotId,
+        championName: champ ? champ.name : null,
+      },
+    }),
+  );
 }
 
 function handleGameEnd(riotId) {
@@ -1408,37 +1354,14 @@ function handleGameEnd(riotId) {
   delete activeGames[riotId];
   saveJson(ACTIVE_GAME_KEY, activeGames);
 
-  addStreamEvent({
-    key: `game-end:${riotId}:${Date.now()}`,
-    type: "Partida",
-    title: `${parseRiotId(riotId).name} termina partida`,
-    body: "Esperando recap de Riot...",
-  });
-
   setTimeout(() => {
     buildPostGameRecap(riotId, before).catch((e) => {
-      addStreamEvent({
-        type: "Post-game",
-        title: parseRiotId(riotId).name,
-        body: `No se pudo cargar el recap: ${e.message}`,
-        tone: "negative",
-      });
+      console.warn("[post-game]", e.message);
     });
   }, 75_000);
 }
 
 function processLiveTransitions(prevInGame, nextInGame, prevTwitch, nextTwitch) {
-  Object.entries(nextTwitch || {}).forEach(([channel, stream]) => {
-    if (prevTwitch && prevTwitch[channel]) return;
-    addStreamEvent({
-      key: `twitch-live:${channel}:${stream.startedAt || Date.now()}`,
-      type: "Twitch",
-      title: `${stream.userName || channel} esta en directo`,
-      body: stream.title || "Directo en Twitch",
-      tone: "live",
-    });
-  });
-
   Object.entries(nextInGame || {}).forEach(([riotId, live]) => {
     if (!isStreamRelevantRiotId(riotId)) return;
     if (prevInGame && prevInGame[riotId]) return;
