@@ -42,7 +42,7 @@ La pestana `Stream` genera URLs para OBS y comandos listos para Nightbot:
   (`&test=1` lanza alertas demo para probar en OBS).
 - Nightbot: `$(urlfetch https://TU_DOMINIO/api/command-gap)`,
   `$(urlfetch https://TU_DOMINIO/api/command-reto)`,
-  `$(urlfetch https://TU_DOMINIO/api/command-road?riot=Nombre%23Tag)`,
+  `$(urlfetch https://TU_DOMINIO/api/command-lp?mode=road&riot=Nombre%23Tag)`,
   `$(urlfetch https://TU_DOMINIO/api/command-lp?riot=Nombre%23Tag)` y
   `$(urlfetch https://TU_DOMINIO/api/command-live)`.
 
