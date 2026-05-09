@@ -7,12 +7,16 @@ const {
   isAuthorized,
   isDatabaseConfigured,
   saveSnapshot,
+  sqlClient,
 } = require("./_challenge");
 const {
+  editWebhookMessage,
+  findLatestWebhookMessage,
+  getWebhookInfo,
   postWebhook,
   isDiscordConfigured,
   isBotConfigured,
-  createThread,
+  createChannelThread,
   renameChannel,
 } = require("./_discord");
 
@@ -66,6 +70,33 @@ function threadDateLabel(date = new Date()) {
   }).format(date);
 }
 
+function compactThreadDateLabel(date = new Date()) {
+  return new Intl.DateTimeFormat("es-ES", {
+    timeZone: "Atlantic/Canary",
+    day: "numeric",
+    month: "numeric",
+  }).format(date);
+}
+
+function isThreadFromDate(thread, date = new Date()) {
+  const name = thread && thread.name ? thread.name : "";
+  return (
+    name.includes(threadDateLabel(date)) ||
+    name.includes(compactThreadDateLabel(date))
+  );
+}
+
+function threadDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Atlantic/Canary",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
 function buildThreadName() {
   const phase = challengePhase();
   const date = threadDateLabel();
@@ -74,6 +105,126 @@ function buildThreadName() {
   }
   if (phase.state === "upcoming") return `📝 ${date} · Pre-reto · Discusión`;
   return `📝 ${date} · Reto finalizado · Discusión`;
+}
+
+async function ensureDiscordStateSchema(sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS challenge_discord_state (
+      challenge_id TEXT PRIMARY KEY,
+      summary_message_id TEXT,
+      summary_channel_id TEXT,
+      thread_date TEXT,
+      thread_id TEXT,
+      thread_name TEXT,
+      poll_date TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+}
+
+function mapDiscordState(row) {
+  if (!row) {
+    return {
+      summaryMessageId: null,
+      summaryChannelId: null,
+      threadDate: null,
+      threadId: null,
+      threadName: null,
+      pollDate: null,
+    };
+  }
+  return {
+    summaryMessageId: row.summary_message_id || null,
+    summaryChannelId: row.summary_channel_id || null,
+    threadDate: row.thread_date || null,
+    threadId: row.thread_id || null,
+    threadName: row.thread_name || null,
+    pollDate: row.poll_date || null,
+  };
+}
+
+async function readDiscordState(sql, challengeId) {
+  await ensureDiscordStateSchema(sql);
+  const rows = await sql`
+    SELECT
+      summary_message_id,
+      summary_channel_id,
+      thread_date,
+      thread_id,
+      thread_name,
+      poll_date
+    FROM challenge_discord_state
+    WHERE challenge_id = ${challengeId}
+  `;
+  return mapDiscordState(rows[0]);
+}
+
+async function saveDiscordChannel(sql, challengeId, channelId) {
+  await ensureDiscordStateSchema(sql);
+  await sql`
+    INSERT INTO challenge_discord_state (
+      challenge_id,
+      summary_channel_id,
+      updated_at
+    )
+    VALUES (${challengeId}, ${channelId}, NOW())
+    ON CONFLICT (challenge_id) DO UPDATE SET
+      summary_channel_id = EXCLUDED.summary_channel_id,
+      updated_at = NOW()
+  `;
+}
+
+async function saveSummaryMessage(sql, challengeId, message) {
+  if (!message || !message.id) return;
+  await ensureDiscordStateSchema(sql);
+  await sql`
+    INSERT INTO challenge_discord_state (
+      challenge_id,
+      summary_message_id,
+      summary_channel_id,
+      updated_at
+    )
+    VALUES (${challengeId}, ${message.id}, ${message.channel_id}, NOW())
+    ON CONFLICT (challenge_id) DO UPDATE SET
+      summary_message_id = EXCLUDED.summary_message_id,
+      summary_channel_id = EXCLUDED.summary_channel_id,
+      updated_at = NOW()
+  `;
+}
+
+async function saveDailyThread(sql, challengeId, dateKey, thread) {
+  if (!thread || !thread.id) return;
+  await ensureDiscordStateSchema(sql);
+  await sql`
+    INSERT INTO challenge_discord_state (
+      challenge_id,
+      thread_date,
+      thread_id,
+      thread_name,
+      updated_at
+    )
+    VALUES (${challengeId}, ${dateKey}, ${thread.id}, ${thread.name || ""}, NOW())
+    ON CONFLICT (challenge_id) DO UPDATE SET
+      thread_date = EXCLUDED.thread_date,
+      thread_id = EXCLUDED.thread_id,
+      thread_name = EXCLUDED.thread_name,
+      updated_at = NOW()
+  `;
+}
+
+async function savePollDate(sql, challengeId, dateKey) {
+  await ensureDiscordStateSchema(sql);
+  await sql`
+    INSERT INTO challenge_discord_state (
+      challenge_id,
+      poll_date,
+      updated_at
+    )
+    VALUES (${challengeId}, ${dateKey}, NOW())
+    ON CONFLICT (challenge_id) DO UPDATE SET
+      poll_date = EXCLUDED.poll_date,
+      updated_at = NOW()
+  `;
 }
 
 function buildDailyPoll() {
@@ -178,7 +329,7 @@ function playerFieldValue(p, lpDelta, daily) {
   return lines.join("\n");
 }
 
-function buildSummaryEmbed(p1, p2, previous) {
+function buildSummaryEmbed(p1, p2, previous, threadId = null) {
   const p1Prev = previous.byRiotId[p1.riotId];
   const p2Prev = previous.byRiotId[p2.riotId];
   const p1LpDelta = p1Prev ? p1.totalLp - p1Prev.totalLp : null;
@@ -211,10 +362,13 @@ function buildSummaryEmbed(p1, p2, previous) {
   const gapLine = diff === 0 ? "**0 LP**" : `**+${diff} LP**`;
   const leaderEmoji = diff === 0 ? "🤝" : "🥇";
   const trailerEmoji = diff === 0 ? "🤝" : "🥈";
+  const discussionLine = threadId
+    ? `\n\n**Discusión de hoy:** <#${threadId}>`
+    : "";
 
   return {
     title: "🥊 SoloQ Challenge — SevillanaEnjoyer vs CAL Destroyersit",
-    description: `${header}\n\n**GAP:** ${gapLine}`,
+    description: `${header}\n\n**GAP:** ${gapLine}${discussionLine}`,
     color: 0xf0b232,
     fields: [
       {
@@ -240,6 +394,114 @@ function buildPromoEmbed(player, prevTier) {
     color: TIER_COLORS[player.tier] || 0xf0b232,
     thumbnail: { url: emblemUrl(player.tier) },
   };
+}
+
+async function adoptDiscordSummary(sql, challengeId, state, dateKey) {
+  if (state.summaryMessageId && state.summaryChannelId) return state;
+
+  try {
+    const info = await getWebhookInfo();
+    const channelId = info.webhook && info.webhook.channel_id;
+    if (!channelId) return state;
+
+    await saveDiscordChannel(sql, challengeId, channelId);
+    let nextState = { ...state, summaryChannelId: channelId };
+
+    if (isBotConfigured()) {
+      try {
+        const found = await findLatestWebhookMessage(channelId);
+        if (found.ok && found.message) {
+          await saveSummaryMessage(sql, challengeId, found.message);
+          nextState = {
+            ...nextState,
+            summaryMessageId: found.message.id,
+            summaryChannelId: found.message.channel_id || channelId,
+          };
+
+          if (found.message.thread && isThreadFromDate(found.message.thread)) {
+            await saveDailyThread(sql, challengeId, dateKey, found.message.thread);
+            nextState = {
+              ...nextState,
+              threadDate: dateKey,
+              threadId: found.message.thread.id,
+              threadName: found.message.thread.name || null,
+            };
+          }
+        }
+      } catch (e) {
+        console.warn("Discord summary adopt skip:", e.message);
+      }
+    }
+
+    return nextState;
+  } catch (e) {
+    console.warn("Discord webhook info skip:", e.message);
+    return state;
+  }
+}
+
+async function ensureDailyThread(sql, challengeId, state, dateKey) {
+  if (!isBotConfigured()) {
+    return {
+      state,
+      result: { skipped: true, reason: "DISCORD_BOT_TOKEN no configurada" },
+    };
+  }
+
+  if (state.threadDate === dateKey && state.threadId) {
+    return {
+      state,
+      result: {
+        ok: true,
+        reused: true,
+        thread: { id: state.threadId, name: state.threadName },
+      },
+    };
+  }
+
+  if (!state.summaryChannelId) {
+    return {
+      state,
+      result: { skipped: true, reason: "Canal de Discord no encontrado" },
+    };
+  }
+
+  const result = await createChannelThread(state.summaryChannelId, buildThreadName());
+  if (result.ok && result.thread) {
+    await saveDailyThread(sql, challengeId, dateKey, result.thread);
+    return {
+      state: {
+        ...state,
+        threadDate: dateKey,
+        threadId: result.thread.id,
+        threadName: result.thread.name || null,
+      },
+      result,
+    };
+  }
+
+  return { state, result };
+}
+
+async function upsertSummaryMessage(sql, challengeId, state, payload) {
+  if (state.summaryMessageId) {
+    try {
+      const edited = await editWebhookMessage(state.summaryMessageId, payload);
+      if (edited.ok && edited.message) {
+        await saveSummaryMessage(sql, challengeId, edited.message);
+      }
+      return { ...edited, action: "edited" };
+    } catch (e) {
+      if (e.status !== 404) throw e;
+      console.warn("Discord summary missing, creating a fresh one");
+    }
+  }
+
+  const created = await postWebhook(payload, { wait: true });
+  if (created.ok && created.message) {
+    await saveSummaryMessage(sql, challengeId, created.message);
+  }
+  return { ...created, action: "created" };
 }
 
 module.exports = async (req, res) => {
@@ -273,14 +535,14 @@ module.exports = async (req, res) => {
 
     // 4. Embeds
     const [p1, p2] = players;
-    const embeds = [buildSummaryEmbed(p1, p2, previous)];
+    const promoEmbeds = [];
 
     const promotions = [];
     for (const p of players) {
       const prev = previous.byRiotId[p.riotId];
       if (prev && isPromotion(prev.tier, p.tier)) {
         promotions.push({ player: p.name, prevTier: prev.tier, newTier: p.tier });
-        embeds.push(buildPromoEmbed(p, prev.tier));
+        promoEmbeds.push(buildPromoEmbed(p, prev.tier));
       }
     }
 
@@ -291,34 +553,58 @@ module.exports = async (req, res) => {
     let renameResult = { skipped: true };
 
     if (isDiscordConfigured()) {
-      discordResult = await postWebhook(
-        { embeds: embeds.slice(0, 10) },
-        { wait: true },
+      const sql = sqlClient();
+      const dateKey = threadDateKey();
+      let discordState = await readDiscordState(sql, CHALLENGE_ID);
+      discordState = await adoptDiscordSummary(
+        sql,
+        CHALLENGE_ID,
+        discordState,
+        dateKey,
       );
 
-      // Hilo de discusión sobre el recap (necesita bot user)
-      if (
-        discordResult.ok &&
-        discordResult.message &&
-        isBotConfigured()
-      ) {
+      try {
+        const ensured = await ensureDailyThread(
+          sql,
+          CHALLENGE_ID,
+          discordState,
+          dateKey,
+        );
+        discordState = ensured.state;
+        threadResult = ensured.result;
+      } catch (e) {
+        console.warn("Discord thread skip:", e.message);
+        threadResult = { error: e.message };
+      }
+
+      const summaryEmbed = buildSummaryEmbed(
+        p1,
+        p2,
+        previous,
+        discordState.threadId,
+      );
+
+      discordResult = await upsertSummaryMessage(sql, CHALLENGE_ID, discordState, {
+        embeds: [summaryEmbed],
+      });
+
+      // Las promociones van como aviso aparte; el marcador principal se edita.
+      if (promoEmbeds.length > 0) {
         try {
-          threadResult = await createThread(
-            discordResult.message.channel_id,
-            discordResult.message.id,
-            buildThreadName(),
-          );
+          await postWebhook({ embeds: promoEmbeds.slice(0, 10) });
         } catch (e) {
-          console.warn("Discord thread skip:", e.message);
-          threadResult = { error: e.message };
+          console.warn("Discord promo skip:", e.message);
         }
       }
 
       // Poll diario solo durante el reto activo
       const phase = challengePhase();
-      if (phase.state === "active") {
+      if (phase.state === "active" && discordState.pollDate !== dateKey) {
         try {
           pollResult = await postWebhook(buildDailyPoll());
+          if (pollResult.ok) {
+            await savePollDate(sql, CHALLENGE_ID, dateKey);
+          }
         } catch (e) {
           console.warn("Discord poll skip:", e.message);
           pollResult = { error: e.message };
