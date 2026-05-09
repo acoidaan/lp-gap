@@ -115,10 +115,14 @@ $p2.addEventListener("input", check);
 );
 $btn.addEventListener("click", compare);
 $viewTabs.forEach((tab) => {
-  tab.addEventListener("click", () => setActiveView(tab.dataset.view));
+  tab.addEventListener("click", () => {
+    setActiveView(tab.dataset.view);
+    syncViewUrl(tab.dataset.view);
+  });
 });
 
 function setActiveView(view) {
+  if (!view || !document.getElementById(`${view}-view`)) view = "compare";
   $viewTabs.forEach((tab) => {
     tab.className = tab.dataset.view === view ? "active" : "";
   });
@@ -135,6 +139,15 @@ function setActiveView(view) {
     if (typeof refreshLiveStatus === "function" && lastLadderPlayers.length)
       refreshLiveStatus();
   }
+}
+
+function syncViewUrl(view) {
+  try {
+    const url = new URL(location.href);
+    if (view && view !== "compare") url.searchParams.set("view", view);
+    else url.searchParams.delete("view");
+    history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  } catch {}
 }
 
 // Fechas en hora de Canarias (WEST = UTC+1 en agosto). Empieza el 1 de
@@ -1949,6 +1962,16 @@ refreshLadder();
     if (p1) $p1.value = p1;
     if (p2) $p2.value = p2;
     check();
-    if ($p1.value.includes("#") && $p2.value.includes("#")) compare();
+    const requestedView =
+      url.searchParams.get("view") ||
+      (location.hash ? location.hash.slice(1) : "");
+    if (requestedView) setActiveView(requestedView);
+    if (
+      (!requestedView || requestedView === "compare") &&
+      $p1.value.includes("#") &&
+      $p2.value.includes("#")
+    ) {
+      compare();
+    }
   } catch {}
 })();

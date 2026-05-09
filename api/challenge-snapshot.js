@@ -25,6 +25,21 @@ const CHALLENGE_START_MS = new Date("2026-08-01T00:00:00+01:00").getTime();
 const CHALLENGE_END_MS = new Date("2026-09-01T00:00:00+01:00").getTime();
 const CHALLENGE_TOTAL_DAYS = 31;
 
+function publicBaseUrl() {
+  const raw =
+    process.env.PUBLIC_BASE_URL ||
+    process.env.APP_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    "https://lp-gap.vercel.app";
+  const withProtocol = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  return withProtocol.replace(/\/+$/, "");
+}
+
+function challengeUrl() {
+  return `${publicBaseUrl()}/?view=challenge`;
+}
+
 function challengePhase() {
   const now = Date.now();
   if (now < CHALLENGE_START_MS) {
@@ -360,6 +375,8 @@ function buildSummaryEmbed(p1, p2, previous, threadId = null) {
       ? "🤝 Empate técnico — siguen igualados"
       : `**${leader.name}** va por delante`;
   const gapLine = diff === 0 ? "**0 LP**" : `**+${diff} LP**`;
+  const lpGapUrl = challengeUrl();
+  const lpGapLine = `\n\n[Ver LP GAP](${lpGapUrl})`;
   const leaderEmoji = diff === 0 ? "🤝" : "🥇";
   const trailerEmoji = diff === 0 ? "🤝" : "🥈";
   const discussionLine = threadId
@@ -368,7 +385,8 @@ function buildSummaryEmbed(p1, p2, previous, threadId = null) {
 
   return {
     title: "🥊 SoloQ Challenge — SevillanaEnjoyer vs CAL Destroyersit",
-    description: `${header}\n\n**GAP:** ${gapLine}${discussionLine}`,
+    url: lpGapUrl,
+    description: `${header}\n\n**GAP:** ${gapLine}${lpGapLine}${discussionLine}`,
     color: 0xf0b232,
     fields: [
       {

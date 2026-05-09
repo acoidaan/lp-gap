@@ -22,6 +22,8 @@ Opcionales:
 - `DISCORD_WEBHOOK_URL`: webhook para publicar recaps y avisos.
 - `DISCORD_BOT_TOKEN` y `DISCORD_VOICE_CHANNEL_ID`: bot para crear hilos y
   renombrar el canal de voz del reto.
+- `PUBLIC_BASE_URL`: URL publica de la web usada en enlaces de Discord
+  (por defecto `https://lp-gap.vercel.app`).
 
 Sin base de datos, el historico del reto cae a `localStorage` en el navegador.
 Vercel Cron ejecuta `/api/challenge-snapshot` a diario a las 07:00 UTC.
@@ -32,6 +34,7 @@ El watcher de Twitch se configura con cron externo cada 15 minutos; ver
 
 La pestana `Stream` genera URLs para OBS y comandos listos para Nightbot:
 
+- SoloQ Challenge: `https://lp-gap.vercel.app/?view=challenge`
 - Overlay jugador: `/overlay/solo.html?riot=Nombre%23Tag&region=euw&refresh=60`
 - Overlay challenge: `/overlay/challenge.html?refresh=60&cycle=10`
 - Overlay alertas: `/overlay/alerts.html?refresh=60&duration=6&sound=0`
