@@ -38,6 +38,7 @@ La pestana `Stream` genera URLs para OBS y comandos listos para Nightbot:
 - Overlay jugador: `/overlay/solo.html?riot=Nombre%23Tag&region=euw&refresh=60&cycle=10`
 - Overlay challenge: `/overlay/challenge.html?refresh=60&cycle=10`
 - Overlay Road to Ranked: `/overlay/road.html?riot=Nombre%23Tag&region=euw&refresh=60&cycle=10`
+  (`&reset=1` fuerza una sesion nueva; `&session=stream-1` usa un contador separado).
 - Overlay alertas: `/overlay/alerts.html?refresh=60&duration=6&sound=0`
   (`&test=1` lanza alertas demo para probar en OBS).
 - Nightbot: `$(urlfetch https://TU_DOMINIO/api/command-gap)`,
