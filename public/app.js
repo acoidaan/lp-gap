@@ -369,7 +369,7 @@ const TWITCH_CHANNELS = {
   "stellar#aco": "xstellar_",
   "sevillanaenjoyer#carla": "xstellar_",
   "cal destroyersit#euw": "destr0lol",
-  "elmiillor11#gordo": "elmiillor",
+  "la cumbre#elm": "elmiillor",
 };
 
 function twitchChannelForRiotId(riotId) {
@@ -1665,7 +1665,7 @@ const LADDER_PLAYERS = [
   "ElPidroIMAX#2538",
   "aco#waifu",
   "LosCocos al aire#wasap",
-  "ElmiilloR11#GORDO",
+  "LA CUMBRE#ELM",
   "SevillanaEnjoyer#CARLA",
   "CAL Destroyersit#EUW",
 ];
