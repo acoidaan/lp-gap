@@ -58,14 +58,19 @@ El test run correcto debe devolver `200 OK` con un JSON parecido a:
   "ok": true,
   "checked": 3,
   "newlyLive": [],
+  "live": [],
   "discord": {
-    "skipped": true
+    "ok": true,
+    "action": "edited",
+    "messageId": "..."
   }
 }
 ```
 
-Si alguien acaba de pasar de offline a live, `newlyLive` traera su canal y se
-mandara el aviso a Discord.
+El watcher mantiene un unico mensaje en Discord y lo va editando con el estado
+de `botas` (`votillas`), `destro` (`destr0lol`) y `stellar` (`xstellar_`).
+`newlyLive` sigue apareciendo en la respuesta para depurar transiciones, pero
+ya no crea mensajes separados por cada directo.
 
 Errores habituales:
 

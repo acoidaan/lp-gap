@@ -19,7 +19,8 @@ Opcionales:
   para guardar historico permanente del SoloQ Challenge.
 - `TWITCH_CLIENT_ID` y `TWITCH_CLIENT_SECRET`: credenciales Helix para detectar
   directos de Twitch.
-- `DISCORD_WEBHOOK_URL`: webhook para publicar recaps y avisos.
+- `DISCORD_WEBHOOK_URL`: webhook para publicar recaps y editar el estado de
+  streams.
 - `DISCORD_BOT_TOKEN` y `DISCORD_VOICE_CHANNEL_ID`: bot para crear hilos y
   renombrar el canal de voz del reto.
 - `PUBLIC_BASE_URL`: URL publica de la web usada en enlaces de Discord
@@ -28,7 +29,8 @@ Opcionales:
 Sin base de datos, el historico del reto cae a `localStorage` en el navegador.
 Vercel Cron ejecuta `/api/challenge-snapshot` a diario a las 07:00 UTC.
 El watcher de Twitch se configura con cron externo cada 15 minutos; ver
-`docs/cronjobs.md`.
+`docs/cronjobs.md`. Mantiene un unico mensaje de estado en Discord para
+`botas`, `destro` y `stellar`.
 
 ## Stream
 

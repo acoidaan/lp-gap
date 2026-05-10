@@ -1,14 +1,23 @@
 const { isAuthorized, isDatabaseConfigured, sqlClient } = require("./_challenge");
 const {
-  WATCHED_TWITCH_CHANNELS,
   isTwitchConfigured,
   fetchStreams,
 } = require("./_twitch");
-const { postWebhook, isDiscordConfigured } = require("./_discord");
+const {
+  postWebhook,
+  editWebhookMessage,
+  isDiscordConfigured,
+} = require("./_discord");
 
-// Canales del grupo. Si añades streamers nuevos a TWITCH_CHANNELS en
-// public/app.js, mete aquí también su handle (en minúsculas).
-const TWITCH_CHANNELS = WATCHED_TWITCH_CHANNELS;
+const STREAM_STATUS_CHANNELS = [
+  { channel: "votillas", label: "botas" },
+  { channel: "destr0lol", label: "destro" },
+  { channel: "xstellar_", label: "stellar" },
+];
+const TWITCH_CHANNELS = STREAM_STATUS_CHANNELS.map((item) => item.channel);
+const STATUS_MESSAGE_KEY = "stream-status";
+const RED_DOT = "\u{1F534}";
+const GREEN_DOT = "\u{1F7E2}";
 
 async function ensureSchema(sql) {
   await sql`
@@ -23,11 +32,17 @@ async function ensureSchema(sql) {
       last_checked TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS twitch_status_message (
+      state_key TEXT PRIMARY KEY,
+      message_id TEXT NOT NULL,
+      channel_id TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
 }
 
 async function readState(sql, channels) {
-  // Tabla pequeñísima (1 fila por canal vigilado). Traemos todo y filtramos
-  // en JS para no depender del cast de arrays del driver HTTP de Neon.
   const rows = await sql`
     SELECT channel, is_live, started_at
     FROM twitch_live_state
@@ -75,30 +90,113 @@ async function upsertState(sql, channel, stream) {
   }
 }
 
-function buildLiveEmbed(channel, stream) {
-  const url = `https://www.twitch.tv/${encodeURIComponent(channel)}`;
-  const thumb = stream.thumbnailUrl
-    ? stream.thumbnailUrl.replace("{width}", "640").replace("{height}", "360")
-    : null;
-  const embed = {
-    title: `🔴 ${stream.userName || channel} está EN DIRECTO`,
-    url,
-    description: stream.title || "_Sin título_",
-    color: 0x9146ff,
-    fields: [],
-    timestamp: stream.startedAt || new Date().toISOString(),
-    footer: { text: `Twitch · ${stream.viewerCount || 0} viewers` },
+async function readStatusMessage(sql) {
+  const rows = await sql`
+    SELECT message_id, channel_id
+    FROM twitch_status_message
+    WHERE state_key = ${STATUS_MESSAGE_KEY}
+    LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    messageId: row.message_id,
+    channelId: row.channel_id || null,
   };
-  if (stream.gameName) {
-    embed.fields.push({ name: "Juego", value: stream.gameName, inline: true });
+}
+
+async function saveStatusMessage(sql, message) {
+  if (!message || !message.id) return;
+  await sql`
+    INSERT INTO twitch_status_message (
+      state_key,
+      message_id,
+      channel_id,
+      updated_at
+    )
+    VALUES (
+      ${STATUS_MESSAGE_KEY},
+      ${message.id},
+      ${message.channel_id || null},
+      NOW()
+    )
+    ON CONFLICT (state_key) DO UPDATE SET
+      message_id = EXCLUDED.message_id,
+      channel_id = EXCLUDED.channel_id,
+      updated_at = NOW()
+  `;
+}
+
+function twitchUrl(channel) {
+  return `https://www.twitch.tv/${encodeURIComponent(channel)}`;
+}
+
+function formatViewerCount(viewers) {
+  const count = Number(viewers || 0);
+  return `${count.toLocaleString("es-ES")} viewers`;
+}
+
+function buildStatusLine(item, stream) {
+  const url = twitchUrl(item.channel);
+  if (!stream) {
+    return `${GREEN_DOT} **${item.label}** - sin stream - ${url}`;
   }
-  if (thumb) embed.image = { url: thumb };
-  return embed;
+
+  const meta = [stream.gameName, formatViewerCount(stream.viewerCount)]
+    .filter(Boolean)
+    .join(" - ");
+  return `${RED_DOT} **${item.label}** - EN STREAM - ${meta} - ${url}`;
+}
+
+function buildStatusContent(streams) {
+  const updatedAt = Math.floor(Date.now() / 1000);
+  return [
+    "**Estado de streams**",
+    ...STREAM_STATUS_CHANNELS.map((item) =>
+      buildStatusLine(item, streams[item.channel]),
+    ),
+    "",
+    `Actualizado <t:${updatedAt}:R>`,
+  ].join("\n");
+}
+
+async function upsertStatusMessage(sql, streams) {
+  const payload = {
+    content: buildStatusContent(streams),
+    embeds: [],
+  };
+  const state = await readStatusMessage(sql);
+
+  if (state && state.messageId) {
+    try {
+      const edited = await editWebhookMessage(state.messageId, payload);
+      await saveStatusMessage(sql, edited.message);
+      return {
+        ok: true,
+        action: "edited",
+        messageId: edited.message && edited.message.id,
+      };
+    } catch (e) {
+      if (e.status !== 404) throw e;
+      console.warn("Discord stream status missing, creating a fresh one");
+    }
+  }
+
+  const created = await postWebhook(payload, { wait: true });
+  if (created.ok && created.message) {
+    await saveStatusMessage(sql, created.message);
+    return {
+      ok: true,
+      action: "created",
+      messageId: created.message.id,
+    };
+  }
+  return created;
 }
 
 module.exports = async (req, res) => {
   if (req.method && !["GET", "POST"].includes(req.method)) {
-    return res.status(405).json({ error: "Método no permitido" });
+    return res.status(405).json({ error: "Metodo no permitido" });
   }
   if (!isAuthorized(req)) {
     return res.status(401).json({ error: "No autorizado" });
@@ -128,18 +226,14 @@ module.exports = async (req, res) => {
 
       await upsertState(sql, channel, stream);
 
-      // Solo nos importa offline → live (no spammeamos cuando se va).
       if (isLive && !wasLive) {
         transitions.push({ channel, stream });
       }
     }
 
     let discordResult = { skipped: true };
-    if (transitions.length > 0 && isDiscordConfigured()) {
-      const embeds = transitions
-        .map(({ channel, stream }) => buildLiveEmbed(channel, stream))
-        .slice(0, 10);
-      discordResult = await postWebhook({ embeds });
+    if (isDiscordConfigured()) {
+      discordResult = await upsertStatusMessage(sql, currentStreams);
     }
 
     res.setHeader("Cache-Control", "no-store");
@@ -147,6 +241,7 @@ module.exports = async (req, res) => {
       ok: true,
       checked: TWITCH_CHANNELS.length,
       newlyLive: transitions.map((t) => t.channel),
+      live: TWITCH_CHANNELS.filter((channel) => currentStreams[channel]),
       discord: discordResult,
     });
   } catch (e) {
