@@ -137,7 +137,7 @@ function formatViewerCount(viewers) {
 }
 
 function buildStatusLine(item, stream) {
-  const url = twitchUrl(item.channel);
+  const url = `<${twitchUrl(item.channel)}>`;
   if (!stream) {
     return `${GREEN_DOT} **${item.label}** - sin stream - ${url}`;
   }
