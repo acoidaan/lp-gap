@@ -175,6 +175,7 @@
       }
 
       .value-block {
+        min-width: 0;
         text-align: right;
         font-variant-numeric: tabular-nums;
       }
@@ -198,6 +199,23 @@
         line-height: 1;
         text-transform: uppercase;
         white-space: nowrap;
+      }
+
+      #slide-last {
+        grid-template-columns: 44px minmax(0, 1fr) 104px;
+        gap: 10px;
+      }
+
+      #last-kda {
+        font-size: 23px;
+      }
+
+      #last-kda.kda-wide {
+        font-size: 21px;
+      }
+
+      #last-kda.kda-extra-wide {
+        font-size: 19px;
       }
 
       .thin-track {
@@ -402,6 +420,7 @@
       const sessionName = (params.get("session") || "").trim();
       const TARGET_LEVEL = 30;
       const SESSION_MAX_AGE = 16 * 60 * 60 * 1000;
+      const lastKdaValue = document.getElementById("last-kda");
 
       const QUEUES = {
         400: "Draft",
@@ -715,7 +734,7 @@
           document.getElementById("last-title").textContent = "Ultima partida";
           document.getElementById("last-champion").textContent = "Sin datos";
           document.getElementById("last-meta").textContent = "Esperando recap";
-          document.getElementById("last-kda").textContent = "-";
+          setLastKda("-");
           return;
         }
 
@@ -728,8 +747,14 @@
         document.getElementById("last-champion").textContent = champ;
         document.getElementById("last-meta").textContent =
           `${queueName(game.queueId)} - ${fmtDuration(game.gameDuration)}`;
-        document.getElementById("last-kda").textContent =
-          `${game.kills}/${game.deaths}/${game.assists}`;
+        setLastKda(`${game.kills}/${game.deaths}/${game.assists}`);
+      }
+
+      function setLastKda(value) {
+        const text = String(value || "-");
+        lastKdaValue.textContent = text;
+        lastKdaValue.classList.toggle("kda-wide", text.length >= 7);
+        lastKdaValue.classList.toggle("kda-extra-wide", text.length >= 9);
       }
 
       function applyLive(live) {
